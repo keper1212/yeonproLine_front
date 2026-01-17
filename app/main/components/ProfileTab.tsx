@@ -29,7 +29,7 @@ const badgeIconMap: Record<string, string> = {
   "열정팬": "🔥",
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
 
 type UserSummary = {
   nickname: string;
