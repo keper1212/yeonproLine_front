@@ -1,5 +1,6 @@
-import Image from "next/image"
-import Link from "next/link"
+"use client"
+
+import { signIn } from "next-auth/react"
 
 export default function Home() {
   return (
@@ -13,19 +14,20 @@ export default function Home() {
           연프 도사
         </h1>
         <p className="text-gray-600 text-xl md:text-2xl max-w-lg mx-auto mb-12 leading-relaxed">
-          실시간으로 함께 예측하고<br/>
+          실시간으로 함께 예측하고<br />
           방송을 더 재밌게 즐겨보세요!
         </p>
       </div>
 
       {/* CTA 버튼 */}
       <div className="space-y-4 w-full max-w-md">
-        <Link 
-          href="/main"
+        <button
+          type="button"
+          onClick={() => signIn("google", { callbackUrl: "/main" })}
           className="block w-full py-6 px-8 bg-rose-500 text-white font-bold text-xl rounded-3xl shadow-lg hover:scale-[1.02] hover:bg-rose-600 transition-all duration-200 text-center"
         >
           로그인하여 시작하기
-        </Link>
+        </button>
         {/* 예측 버튼 제거, 로그인 후 이용 가능 */}
       </div>
 
