@@ -8,9 +8,8 @@ export default function MainPage() {
   const [selectedTab, setSelectedTab] = useState("예측");
 
   return (
-    <div className="min-h-screen bg-gray-900 px-6 flex flex-col">
-
-      {/* 상단 탭 */}
+    <div className="min-h-screen bg-gray-900 px-6 pb-28">
+      {/* 하단 탭 */}
       <TopTab selected={selectedTab} setSelected={setSelectedTab} />
 
       {/* 탭별 컨텐츠 */}
@@ -21,7 +20,6 @@ export default function MainPage() {
         {selectedTab === "순위" && <div>순위</div>}
         {selectedTab === "내정보" && <div>내정보</div>}
       </div>
-
     </div>
   );
 }
