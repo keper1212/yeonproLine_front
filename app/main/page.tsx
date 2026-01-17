@@ -3,12 +3,13 @@
 import { useState } from "react";
 import TopTab from "./components/TopTab";
 import PredictTab from "./components/PredictTab";
+import ProfileTab from "./components/ProfileTab";
 
 export default function MainPage() {
   const [selectedTab, setSelectedTab] = useState("예측");
 
   return (
-    <div className="min-h-screen bg-gray-900 px-6 pb-28">
+    <div className="min-h-screen bg-[#F8FAFF] px-6 pb-28">
       {/* 하단 탭 */}
       <TopTab selected={selectedTab} setSelected={setSelectedTab} />
 
@@ -18,7 +19,7 @@ export default function MainPage() {
         {selectedTab === "민심" && <div>민심</div>}
         {selectedTab === "채팅" && <div>채팅</div>}
         {selectedTab === "순위" && <div>순위</div>}
-        {selectedTab === "내정보" && <div>내정보</div>}
+        {selectedTab === "내정보" && <ProfileTab />}
       </div>
     </div>
   );
