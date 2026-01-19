@@ -196,10 +196,12 @@ export default function ChatTab() {
                     currentUserId === message.user_id ? "items-end text-right" : ""
                   }`}
                 >
-                  <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                    <span>{message.nickname}</span>
-                    {renderBadge(message)}
-                  </div>
+                  {currentUserId !== message.user_id && (
+                    <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      <span>{message.nickname}</span>
+                      {renderBadge(message)}
+                    </div>
+                  )}
                   <div
                     className={`inline-flex rounded-xl border px-3 py-2 text-xs text-slate-700 ${
                       currentUserId === message.user_id
