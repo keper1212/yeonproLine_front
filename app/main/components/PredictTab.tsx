@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Clock, Heart, Sparkles } from "lucide-react";
+import { Clock, Heart, MessageCircle, MessageCircleHeart, Sparkles } from "lucide-react";
 
 interface Participant {
   id: number;
@@ -446,29 +446,10 @@ export default function PredictTab() {
                       key={`${pair.female_id}-${pair.male_id}`}
                       className="flex items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 py-3"
                     >
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={female.image_url ?? ""}
-                          alt={female.name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
-                        <span className="text-sm font-semibold text-slate-800">
-                          {female.name}
-                        </span>
-                        <div className="relative mx-2 flex items-center">
-                          <div className="h-[2px] w-10 bg-pink-300" />
-                          <div className="absolute left-1/2 -translate-x-1/2 rounded-full bg-pink-500 p-1 text-white">
-                            <Heart className="h-3 w-3 fill-white" />
-                          </div>
-                        </div>
-                        <span className="text-sm font-semibold text-slate-800">
-                          {male.name}
-                        </span>
-                        <img
-                          src={male.image_url ?? ""}
-                          alt={male.name}
-                          className="h-10 w-10 rounded-full object-cover"
-                        />
+                      <div className="flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-800">
+                        {female.name}
+                        <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
+                        {male.name}
                       </div>
                       {!overview?.season_couples_locked && (
                         <button
@@ -584,32 +565,38 @@ export default function PredictTab() {
 
             <div className="mt-5 space-y-5">
               <div className="grid grid-cols-3 gap-4">
-                {femaleParticipants.map((participant) =>
-                  renderParticipantCard(
+                {femaleParticipants.map((participant) => {
+                  const disabled = messagePairs.some(
+                    (pair) => pair.female_id === participant.id
+                  );
+                  return renderParticipantCard(
                     participant,
                     messageSelection.femaleId === participant.id,
-                    false,
+                    disabled,
                     () =>
                       setMessageSelection((prev) => ({
                         ...prev,
                         femaleId: participant.id,
                       }))
-                  )
-                )}
+                  );
+                })}
               </div>
               <div className="grid grid-cols-3 gap-4">
-                {maleParticipants.map((participant) =>
-                  renderParticipantCard(
+                {maleParticipants.map((participant) => {
+                  const disabled = messagePairs.some(
+                    (pair) => pair.male_id === participant.id
+                  );
+                  return renderParticipantCard(
                     participant,
                     messageSelection.maleId === participant.id,
-                    false,
+                    disabled,
                     () =>
                       setMessageSelection((prev) => ({
                         ...prev,
                         maleId: participant.id,
                       }))
-                  )
-                )}
+                  );
+                })}
               </div>
             </div>
 
@@ -627,9 +614,9 @@ export default function PredictTab() {
                       key={`${pair.female_id}-${pair.male_id}`}
                       className="flex items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 py-3"
                     >
-                      <div className="flex items-center gap-3 text-sm font-semibold text-slate-800">
+                      <div className="flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-800">
                         {female.name}
-                        <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
+                        <MessageCircleHeart className="h-4 w-4 text-pink-500" />
                         {male.name}
                       </div>
                       <button
