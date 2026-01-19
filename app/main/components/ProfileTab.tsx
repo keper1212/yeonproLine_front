@@ -36,6 +36,9 @@ type UserSummary = {
   points: number;
   accuracy_rate: number;
   participated_episodes: number;
+  primary_badge_id?: number | null;
+  primary_badge_name?: string | null;
+  primary_badge_icon_url?: string | null;
 };
 
 type BadgeItem = {
@@ -145,6 +148,10 @@ export default function ProfileTab() {
     () => badges.filter((badge) => badge.is_owned),
     [badges]
   );
+  const primaryBadgeEmoji = useMemo(() => {
+    if (!summary?.primary_badge_name) return "🏅";
+    return badgeIconMap[summary.primary_badge_name] ?? "🏅";
+  }, [summary?.primary_badge_name]);
 
   const stats = useMemo(() => {
     if (!summary) return [];
@@ -252,7 +259,17 @@ export default function ProfileTab() {
         <>
           <div className="bg-[#FFF5F8] rounded-[2.5rem] p-6 border-2 border-[#FFD1E0] shadow-sm text-left">
             <div className="flex items-center gap-5 mb-6">
-              <div className="w-20 h-20 flex-shrink-0 rounded-full border-4 border-white overflow-hidden shadow-md bg-white" />
+              <div className="w-20 h-20 flex-shrink-0 rounded-full border-4 border-white overflow-hidden shadow-md bg-white flex items-center justify-center">
+                {summary.primary_badge_icon_url ? (
+                  <img
+                    src={summary.primary_badge_icon_url}
+                    alt={summary.primary_badge_name ?? "대표 배지"}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <span className="text-3xl">{primaryBadgeEmoji}</span>
+                )}
+              </div>
               <div className="space-y-1">
                 <h2 className="text-xl font-bold">{summary.nickname}</h2>
                 <div className="flex gap-1.5 text-lg">
