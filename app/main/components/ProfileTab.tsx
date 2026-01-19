@@ -29,7 +29,7 @@ const badgeIconMap: Record<string, string> = {
   "열정팬": "🔥",
 };
 
-const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000/api";
+const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
 type UserSummary = {
   nickname: string;
@@ -156,7 +156,7 @@ export default function ProfileTab() {
       },
       { label: "총 포인트", value: String(summary.points), color: "#7C3AED" },
       {
-        label: "총 참여 회차",
+        label: "참여 회차",
         value: String(summary.participated_episodes),
         color: "#3B82F6",
       },
@@ -202,10 +202,6 @@ export default function ProfileTab() {
     });
   }, [history]);
 
-  const personality = summary?.nickname
-    ? summary
-    : null;
-
   const personalityData = useMemo(() => {
     return [
       {
@@ -233,7 +229,6 @@ export default function ProfileTab() {
 
   return (
     <div className={`w-full space-y-6 pb-20 px-1 ${fontMain}`}>
-      {/* 1. 제목 섹션 */}
       <div className="pt-4 text-left">
         <h1 className="text-3xl font-bold mb-1">내 정보</h1>
         <p className="text-slate-400 font-medium text-sm">
@@ -255,7 +250,6 @@ export default function ProfileTab() {
 
       {!loading && !error && summary && (
         <>
-          {/* 2. 상단 프로필 카드 */}
           <div className="bg-[#FFF5F8] rounded-[2.5rem] p-6 border-2 border-[#FFD1E0] shadow-sm text-left">
             <div className="flex items-center gap-5 mb-6">
               <div className="w-20 h-20 flex-shrink-0 rounded-full border-4 border-white overflow-hidden shadow-md bg-white" />
@@ -263,9 +257,7 @@ export default function ProfileTab() {
                 <h2 className="text-xl font-bold">{summary.nickname}</h2>
                 <div className="flex gap-1.5 text-lg">
                   {userEarnedBadges.map((badge) => (
-                    <span key={badge.id}>
-                      {badge.icon_url ? "" : badgeIconMap[badge.name] ?? "🏅"}
-                    </span>
+                    <span key={badge.id}>{badgeIconMap[badge.name] ?? "🏅"}</span>
                   ))}
                 </div>
               </div>
@@ -288,7 +280,6 @@ export default function ProfileTab() {
             </div>
           </div>
 
-          {/* 3. 배지 섹션 */}
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-left">
             <div className="flex items-center gap-2 mb-6">
               <Medal className="w-5 h-5 text-yellow-500 fill-yellow-500" />
@@ -305,9 +296,7 @@ export default function ProfileTab() {
                       : "bg-gray-50 border-transparent opacity-30 grayscale"
                   }`}
                 >
-                  <span className="text-2xl mb-1">
-                    {badge.icon_url ? "" : badgeIconMap[badge.name] ?? "🏅"}
-                  </span>
+                  <span className="text-2xl mb-1">{badgeIconMap[badge.name] ?? "🏅"}</span>
                   <p className="text-[10px] font-bold text-center leading-tight px-1">
                     {badge.name}
                   </p>
@@ -316,7 +305,6 @@ export default function ProfileTab() {
             </div>
           </div>
 
-          {/* 4. 적중률 추이 그래프 */}
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-left">
             <div className="flex items-center gap-2 mb-6">
               <TrendingUp className="w-5 h-5 text-green-500" />
@@ -362,7 +350,6 @@ export default function ProfileTab() {
             </div>
           </div>
 
-          {/* 5. 예측 성향 분석 */}
           <div className="bg-[#F5F3FF] rounded-[2.5rem] p-8 shadow-sm border border-[#DDD6FE] text-left">
             <div className="flex items-center gap-2 mb-8">
               <Sparkles className="w-5 h-5 text-purple-500" />
@@ -406,7 +393,6 @@ export default function ProfileTab() {
             </div>
           </div>
 
-          {/* 6. 예측 히스토리 */}
           <div className="bg-white rounded-[2.5rem] p-7 shadow-sm border border-gray-100 text-left">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-2">
