@@ -135,6 +135,7 @@ export default function SentimentTab() {
   const [maleId, setMaleId] = useState<string>("");
   const [analysisType, setAnalysisType] = useState<"couple" | "single">("couple");
   const [timeScale, setTimeScale] = useState<TimeScale>("hour");
+  const [autoSyncSelection, setAutoSyncSelection] = useState(true);
   const [overview, setOverview] = useState<SentimentOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -171,6 +172,7 @@ export default function SentimentTab() {
         const firstMale = data.find((p) => p.gender === "male");
         setFemaleId(firstFemale ? String(firstFemale.id) : "");
         setMaleId(firstMale ? String(firstMale.id) : "");
+        setAutoSyncSelection(true);
       } catch (err) {
         setError(err instanceof Error ? err.message : "알 수 없는 오류입니다.");
       }
@@ -180,7 +182,7 @@ export default function SentimentTab() {
   }, []);
 
   useEffect(() => {
-    if (!overview || participants.length === 0) return;
+    if (!overview || participants.length === 0 || !autoSyncSelection) return;
 
     if (overview.female_id && overview.male_id) {
       const nextFemale = String(overview.female_id);
@@ -345,32 +347,14 @@ export default function SentimentTab() {
         </div>
 
         <div className="space-y-4">
-          <label className="text-sm font-semibold text-slate-600">여자 출연자</label>
-          <div className="relative">
-            <select
-              value={femaleId}
-              onChange={(event) => setFemaleId(event.target.value)}
-              className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base font-semibold text-slate-800 shadow-sm focus:border-rose-400 focus:outline-none"
-            >
-              <option value="">선택 안함</option>
-              {femaleList.map((participant) => (
-                <option key={participant.id} value={participant.id}>
-                  {participant.name}
-                </option>
-              ))}
-            </select>
-            <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">
-              ▾
-            </span>
-          </div>
-        </div>
-
-        <div className="space-y-4">
           <label className="text-sm font-semibold text-slate-600">남자 출연자</label>
           <div className="relative">
             <select
               value={maleId}
-              onChange={(event) => setMaleId(event.target.value)}
+              onChange={(event) => {
+                setAutoSyncSelection(false);
+                setMaleId(event.target.value);
+              }}
               className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base font-semibold text-slate-800 shadow-sm focus:border-rose-400 focus:outline-none"
             >
               <option value="">선택 안함</option>
@@ -386,8 +370,35 @@ export default function SentimentTab() {
           </div>
         </div>
 
+        <div className="space-y-4">
+          <label className="text-sm font-semibold text-slate-600">여자 출연자</label>
+          <div className="relative">
+            <select
+              value={femaleId}
+              onChange={(event) => {
+                setAutoSyncSelection(false);
+                setFemaleId(event.target.value);
+              }}
+              className="w-full appearance-none rounded-2xl border border-slate-200 bg-white px-5 py-4 text-base font-semibold text-slate-800 shadow-sm focus:border-rose-400 focus:outline-none"
+            >
+              <option value="">선택 안함</option>
+              {femaleList.map((participant) => (
+                <option key={participant.id} value={participant.id}>
+                  {participant.name}
+                </option>
+              ))}
+            </select>
+            <span className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-slate-400">
+              ▾
+            </span>
+          </div>
+        </div>
+
         <button
-          onClick={() => setAnalysisType(hasCouple ? "couple" : "single")}
+          onClick={() => {
+            setAutoSyncSelection(false);
+            setAnalysisType(hasCouple ? "couple" : "single");
+          }}
           className={`w-full rounded-2xl px-5 py-4 text-base font-black transition ${
             hasCouple
               ? "bg-rose-50 text-rose-600 border border-rose-100"
@@ -505,11 +516,11 @@ export default function SentimentTab() {
           </div>
         </div>
 
-        <div className="h-[240px] w-full">
+        <div className="h-[260px] w-full pb-4">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={chartData}
-              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+              margin={{ top: 10, right: 10, left: -20, bottom: 16 }}
             >
               <defs>
                 <linearGradient id="sentimentFill" x1="0" y1="0" x2="0" y2="1">
@@ -524,7 +535,9 @@ export default function SentimentTab() {
                 tickLine={false}
                 fontSize={12}
                 tick={{ fill: "#94a3b8", fontWeight: 600 }}
-                dy={16}
+                dy={20}
+                tickMargin={8}
+                interval="preserveStartEnd"
               />
               <YAxis domain={[0, 100]} hide />
               <Tooltip
