@@ -1,7 +1,13 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { TrendingUp, TrendingDown, Sparkles, Activity, Heart } from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import {
+  Activity,
+  Heart,
+  Sparkles,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
 import {
   AreaChart,
   Area,
@@ -14,121 +20,37 @@ import {
 
 type Gender = "female" | "male";
 
-interface Participant {
+type Participant = {
   id: number;
   name: string;
   gender: Gender;
-  image: string;
-}
-
-interface SentimentPoint {
-  time: string;
-  value: number;
-}
-
-interface Highlight {
-  direction: "up" | "down";
-  change: number;
-  time: string;
-  label: string;
-}
-
-interface SentimentViewData {
-  supportRate: number;
-  delta5m: number;
-  chart: SentimentPoint[];
-  highlight: Highlight | null;
-  summary: string;
-  accent: string;
-  accentSoft: string;
-}
-
-const participants: Participant[] = [
-  { id: 1, name: "정원규", gender: "male", image: "/participants/정원규.png" },
-  { id: 2, name: "조유식", gender: "male", image: "/participants/조유식.png" },
-  { id: 3, name: "신승용", gender: "male", image: "/participants/신승용.png" },
-  { id: 4, name: "성백현", gender: "male", image: "/participants/성백현.png" },
-  { id: 5, name: "홍지연", gender: "female", image: "/participants/홍지연.png" },
-  { id: 6, name: "박지현", gender: "female", image: "/participants/박지현.png" },
-  { id: 7, name: "박현지", gender: "female", image: "/participants/박현지.png" },
-  { id: 8, name: "곽민경", gender: "female", image: "/participants/곽민경.png" },
-];
-
-const coupleSentiment: Record<string, SentimentViewData> = {
-  "6-2": {
-    supportRate: 80,
-    delta5m: 0,
-    chart: [
-      { time: "0분", value: 56 },
-      { time: "10분", value: 62 },
-      { time: "20분", value: 63 },
-      { time: "30분", value: 70 },
-      { time: "40분", value: 79 },
-      { time: "50분", value: 80 },
-    ],
-    highlight: { direction: "up", change: 7, time: "40분 구간", label: "급상승" },
-    summary:
-      "박지현 ♥ 조유식 커플이 안정적인 지지를 확보하고 있습니다. 두 사람의 자연스러운 리액션이 긍정 평가를 이끌어냈어요.",
-    accent: "#ff3b73",
-    accentSoft: "bg-rose-50",
-  },
-  "7-1": {
-    supportRate: 66,
-    delta5m: 3,
-    chart: [
-      { time: "0분", value: 52 },
-      { time: "10분", value: 55 },
-      { time: "20분", value: 59 },
-      { time: "30분", value: 61 },
-      { time: "40분", value: 63 },
-      { time: "50분", value: 66 },
-    ],
-    highlight: { direction: "up", change: 5, time: "20분 구간", label: "완만한 상승" },
-    summary:
-      "박현지 ♥ 정원규 커플은 초반 상승세를 유지하며 고른 반응을 얻고 있습니다. 대화의 균형이 시청자 기대를 충족시키는 흐름입니다.",
-    accent: "#ff6b3b",
-    accentSoft: "bg-orange-50",
-  },
+  image_url?: string | null;
 };
 
-const singleSentiment: Record<number, SentimentViewData> = {
-  6: {
-    supportRate: 79,
-    delta5m: 3,
-    chart: [
-      { time: "0분", value: 68 },
-      { time: "10분", value: 72 },
-      { time: "20분", value: 70 },
-      { time: "30분", value: 68 },
-      { time: "40분", value: 74 },
-      { time: "50분", value: 79 },
-    ],
-    highlight: { direction: "up", change: 6, time: "40분 구간", label: "급상승" },
-    summary:
-      "박지현이 시청자에게 높은 호감도를 얻고 있습니다. 침착한 태도와 설득력 있는 대화가 긍정적인 평가로 이어져요.",
-    accent: "#1d9bf0",
-    accentSoft: "bg-sky-50",
-  },
-  5: {
-    supportRate: 71,
-    delta5m: -2,
-    chart: [
-      { time: "0분", value: 76 },
-      { time: "10분", value: 74 },
-      { time: "20분", value: 73 },
-      { time: "30분", value: 72 },
-      { time: "40분", value: 70 },
-      { time: "50분", value: 71 },
-    ],
-    highlight: { direction: "down", change: 4, time: "10분 구간", label: "소폭 하락" },
-    summary:
-      "홍지연은 여전히 높은 관심을 받고 있지만 최근 반응은 다소 보수적으로 변했습니다. 다음 선택이 흐름을 바꿀 수 있어요.",
-    accent: "#0f766e",
-    accentSoft: "bg-emerald-50",
-  },
+type SentimentPoint = {
+  captured_at: string;
+  support_rate: number;
 };
 
-const fallbackChart: SentimentPoint[] = [
+type SentimentEvent = {
+  event_type: "up" | "down" | "stable";
+  delta: number;
+  start_at: string;
+  end_at: string;
+};
+
+type SentimentOverview = {
+  support_rate: number;
+  delta_5m: number;
+  history: SentimentPoint[];
+  summary?: string | null;
+  event?: SentimentEvent | null;
+};
+
+const backendUrl =
+  process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+
+const fallbackChart = [
   { time: "0분", value: 52 },
   { time: "10분", value: 56 },
   { time: "20분", value: 59 },
@@ -137,74 +59,165 @@ const fallbackChart: SentimentPoint[] = [
   { time: "50분", value: 66 },
 ];
 
+const accentPalette = {
+  couple: { line: "#ff3b73", soft: "bg-rose-50" },
+  single: { line: "#1d9bf0", soft: "bg-sky-50" },
+};
+
+function formatMinutesLabel(base: Date, current: Date) {
+  const diff = Math.max(
+    0,
+    Math.round((current.getTime() - base.getTime()) / 60000)
+  );
+  return `${diff}분`;
+}
+
+function resolveImageUrl(participant: Participant | null) {
+  if (!participant) return "/participants/곽민경.png";
+  if (participant.image_url) return participant.image_url;
+  return `/participants/${participant.name}.png`;
+}
+
 export default function SentimentTab() {
-  const femaleList = participants.filter((p) => p.gender === "female");
-  const maleList = participants.filter((p) => p.gender === "male");
-
-  const [femaleId, setFemaleId] = useState<string>(String(femaleList[0]?.id ?? ""));
-  const [maleId, setMaleId] = useState<string>(String(maleList[0]?.id ?? ""));
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [femaleId, setFemaleId] = useState<string>("");
+  const [maleId, setMaleId] = useState<string>("");
   const [analysisType, setAnalysisType] = useState<"couple" | "single">("couple");
+  const [overview, setOverview] = useState<SentimentOverview | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedFemale = femaleList.find((p) => String(p.id) === femaleId) ?? null;
-  const selectedMale = maleList.find((p) => String(p.id) === maleId) ?? null;
+  const femaleList = useMemo(
+    () => participants.filter((p) => p.gender === "female"),
+    [participants]
+  );
+  const maleList = useMemo(
+    () => participants.filter((p) => p.gender === "male"),
+    [participants]
+  );
+
+  const selectedFemale =
+    femaleList.find((p) => String(p.id) === femaleId) ?? null;
+  const selectedMale =
+    maleList.find((p) => String(p.id) === maleId) ?? null;
   const hasCouple = Boolean(selectedFemale && selectedMale);
 
-  const {
-    viewData,
-    title,
-    subtitle,
-    chartTitle,
-    highlightTitle,
-    targetLabel,
-  } = useMemo(() => {
-    if (hasCouple && analysisType === "couple") {
-      const key = `${selectedFemale!.id}-${selectedMale!.id}`;
-      const data =
-        coupleSentiment[key] ??
-        ({
-          supportRate: 62,
-          delta5m: 1,
-          chart: fallbackChart,
-          highlight: null,
-          summary: "선택한 커플의 여론이 안정적으로 유지되고 있습니다.",
-          accent: "#ff3b73",
-          accentSoft: "bg-rose-50",
-        } as SentimentViewData);
-      return {
-        viewData: data,
-        title: "커플 민심 분석",
-        subtitle: `${selectedFemale!.name} ♥ ${selectedMale!.name}`,
-        chartTitle: "커플 인기도 변화 추이",
-        highlightTitle: "주요 변화 구간",
-        targetLabel: `${selectedFemale!.name} ♥ ${selectedMale!.name}`,
-      };
+  useEffect(() => {
+    if (!hasCouple && analysisType === "couple") {
+      setAnalysisType("single");
+    }
+  }, [analysisType, hasCouple]);
+
+  useEffect(() => {
+    const fetchParticipants = async () => {
+      try {
+        const res = await fetch(`${backendUrl}/sentiment/participants`);
+        if (!res.ok) throw new Error("출연자 정보를 불러오지 못했습니다.");
+        const data = (await res.json()) as Participant[];
+        setParticipants(data);
+        const firstFemale = data.find((p) => p.gender === "female");
+        const firstMale = data.find((p) => p.gender === "male");
+        setFemaleId(firstFemale ? String(firstFemale.id) : "");
+        setMaleId(firstMale ? String(firstMale.id) : "");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "알 수 없는 오류입니다.");
+      }
+    };
+
+    fetchParticipants();
+  }, []);
+
+  useEffect(() => {
+    const shouldFetchCouple = analysisType === "couple" && hasCouple;
+    const targetId =
+      analysisType === "single"
+        ? selectedFemale?.id ?? selectedMale?.id
+        : null;
+
+    if (!shouldFetchCouple && !targetId) {
+      setOverview(null);
+      setLoading(false);
+      return;
     }
 
-    const target = selectedFemale ?? selectedMale ?? participants[0];
-    const data =
-      singleSentiment[target.id] ??
-      ({
-        supportRate: 64,
-        delta5m: 2,
-        chart: fallbackChart,
-        highlight: { direction: "up", change: 4, time: "30분 구간", label: "완만한 상승" },
-        summary: `${target.name}의 호감도가 안정적으로 유지되고 있습니다.`,
-        accent: "#1d9bf0",
-        accentSoft: "bg-sky-50",
-      } as SentimentViewData);
+    let isMounted = true;
+    let timer: ReturnType<typeof setInterval> | null = null;
 
-    return {
-      viewData: data,
-      title: "개인 민심 분석",
-      subtitle: `${target.name}`,
-      chartTitle: "개인 호감도 변화 추이",
-      highlightTitle: "주요 변화 구간",
-      targetLabel: target.name,
+    const fetchOverview = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const params = new URLSearchParams();
+        if (shouldFetchCouple && selectedFemale && selectedMale) {
+          params.set("female_id", String(selectedFemale.id));
+          params.set("male_id", String(selectedMale.id));
+        } else if (targetId) {
+          params.set("target_id", String(targetId));
+        }
+        const res = await fetch(
+          `${backendUrl}/sentiment/overview?${params.toString()}`
+        );
+        if (!res.ok) throw new Error("민심 데이터를 불러오지 못했습니다.");
+        const data = (await res.json()) as SentimentOverview;
+        if (isMounted) {
+          setOverview(data);
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : "알 수 없는 오류입니다.");
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    fetchOverview();
+    timer = setInterval(fetchOverview, 30000);
+
+    return () => {
+      isMounted = false;
+      if (timer) clearInterval(timer);
     };
   }, [analysisType, hasCouple, selectedFemale, selectedMale]);
 
-  const deltaLabel = `${viewData.delta5m >= 0 ? "+" : ""}${viewData.delta5m}%`;
-  const trendUp = viewData.delta5m >= 0;
+  const targetLabel = useMemo(() => {
+    if (analysisType === "couple" && selectedFemale && selectedMale) {
+      return `${selectedFemale.name} ♥ ${selectedMale.name}`;
+    }
+    const target = selectedFemale ?? selectedMale;
+    return target ? target.name : "";
+  }, [analysisType, selectedFemale, selectedMale]);
+
+  const chartData = useMemo(() => {
+    if (!overview || overview.history.length === 0) return fallbackChart;
+    const base = new Date(overview.history[0].captured_at);
+    return overview.history.map((point) => {
+      const time = formatMinutesLabel(base, new Date(point.captured_at));
+      return { time, value: point.support_rate };
+    });
+  }, [overview]);
+
+  const highlight = useMemo(() => {
+    if (!overview?.event || overview.event.event_type === "stable") return null;
+    const base = overview.history[0]?.captured_at
+      ? new Date(overview.history[0].captured_at)
+      : null;
+    const endAt = new Date(overview.event.end_at);
+    const timeLabel = base ? `${formatMinutesLabel(base, endAt)} 구간` : "최근 구간";
+    return {
+      direction: overview.event.event_type,
+      change: Math.abs(overview.event.delta),
+      label: overview.event.event_type === "up" ? "급상승" : "급하락",
+      time: timeLabel,
+    };
+  }, [overview]);
+
+  const accent =
+    analysisType === "couple" ? accentPalette.couple : accentPalette.single;
+  const deltaLabel = `${overview?.delta_5m ?? 0 >= 0 ? "+" : ""}${
+    overview?.delta_5m ?? 0
+  }%`;
+  const trendUp = (overview?.delta_5m ?? 0) >= 0;
 
   return (
     <div className="w-full space-y-10 pb-40 text-slate-900 animate-in fade-in duration-700">
@@ -289,11 +302,13 @@ export default function SentimentTab() {
             <>
               <div className="flex flex-col items-center gap-3">
                 <img
-                  src={selectedFemale.image}
+                  src={resolveImageUrl(selectedFemale)}
                   alt={selectedFemale.name}
                   className="h-20 w-20 rounded-full border-2 border-rose-300 object-cover shadow-sm"
                 />
-                <span className="text-sm font-bold text-slate-700">{selectedFemale.name}</span>
+                <span className="text-sm font-bold text-slate-700">
+                  {selectedFemale.name}
+                </span>
               </div>
               <div className="flex flex-col items-center gap-2 text-rose-500">
                 <Heart className="h-6 w-6 fill-rose-500" />
@@ -301,55 +316,80 @@ export default function SentimentTab() {
               </div>
               <div className="flex flex-col items-center gap-3">
                 <img
-                  src={selectedMale.image}
+                  src={resolveImageUrl(selectedMale)}
                   alt={selectedMale.name}
                   className="h-20 w-20 rounded-full border-2 border-slate-300 object-cover shadow-sm"
                 />
-                <span className="text-sm font-bold text-slate-700">{selectedMale.name}</span>
+                <span className="text-sm font-bold text-slate-700">
+                  {selectedMale.name}
+                </span>
               </div>
             </>
           ) : (
             <div className="flex flex-col items-center gap-4">
               <img
-                src={(selectedFemale ?? selectedMale)?.image ?? participants[0].image}
-                alt={targetLabel}
+                src={resolveImageUrl(selectedFemale ?? selectedMale)}
+                alt={targetLabel || "선택 안됨"}
                 className="h-24 w-24 rounded-full border-2 border-slate-200 object-cover shadow-sm"
               />
-              <span className="text-base font-bold text-slate-700">{targetLabel}</span>
+              <span className="text-base font-bold text-slate-700">
+                {targetLabel || "출연자를 선택하세요"}
+              </span>
             </div>
           )}
         </div>
         <div className="text-center">
           <p className="text-xs font-extrabold uppercase tracking-[0.35em] text-slate-400">
-            {title}
+            {analysisType === "couple" ? "커플 민심 분석" : "개인 민심 분석"}
           </p>
-          <p className="text-base font-bold text-slate-700">{subtitle}</p>
+          <p className="text-base font-bold text-slate-700">{targetLabel || ""}</p>
         </div>
       </div>
 
       <div className="rounded-[2.75rem] border border-slate-100 bg-white p-8 shadow-sm space-y-6">
+        {loading && (
+          <p className="text-sm font-semibold text-slate-400">
+            데이터 불러오는 중...
+          </p>
+        )}
+        {!loading && error && (
+          <p className="text-sm font-semibold text-rose-500">{error}</p>
+        )}
+
         <div className="flex items-center justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.35em] text-slate-400">
               현재 {analysisType === "couple" ? "커플 지지율" : "호감도"}
             </p>
             <p className="text-[52px] font-black text-slate-900">
-              {viewData.supportRate}%
+              {overview ? `${overview.support_rate}%` : "--"}
             </p>
             <p className="text-xs font-semibold text-slate-400">최근 5분 대비</p>
           </div>
-          <div className={`flex items-center gap-2 text-sm font-bold ${trendUp ? "text-emerald-500" : "text-rose-500"}`}>
-            {trendUp ? <TrendingUp className="h-5 w-5" /> : <TrendingDown className="h-5 w-5" />}
-            <span>{deltaLabel}</span>
+          <div
+            className={`flex items-center gap-2 text-sm font-bold ${
+              trendUp ? "text-emerald-500" : "text-rose-500"
+            }`}
+          >
+            {trendUp ? (
+              <TrendingUp className="h-5 w-5" />
+            ) : (
+              <TrendingDown className="h-5 w-5" />
+            )}
+            <span>{overview ? deltaLabel : "--"}</span>
           </div>
         </div>
+
         <div className="h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={viewData.chart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+            <AreaChart
+              data={chartData}
+              margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+            >
               <defs>
                 <linearGradient id="sentimentFill" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor={viewData.accent} stopOpacity={0.25} />
-                  <stop offset="95%" stopColor={viewData.accent} stopOpacity={0} />
+                  <stop offset="5%" stopColor={accent.line} stopOpacity={0.25} />
+                  <stop offset="95%" stopColor={accent.line} stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#e2e8f0" />
@@ -373,7 +413,7 @@ export default function SentimentTab() {
               <Area
                 type="monotone"
                 dataKey="value"
-                stroke={viewData.accent}
+                stroke={accent.line}
                 strokeWidth={4}
                 fillOpacity={1}
                 fill="url(#sentimentFill)"
@@ -381,32 +421,31 @@ export default function SentimentTab() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-sm font-bold text-slate-800">{chartTitle}</p>
+        <p className="text-sm font-bold text-slate-800">
+          {analysisType === "couple" ? "커플 인기도 변화 추이" : "개인 호감도 변화 추이"}
+        </p>
       </div>
 
       <div className="rounded-[2.75rem] border border-slate-100 bg-white p-8 shadow-sm space-y-5">
-        <h3 className="text-lg font-black text-slate-900">{highlightTitle}</h3>
-        {viewData.highlight ? (
+        <h3 className="text-lg font-black text-slate-900">주요 변화 구간</h3>
+        {highlight ? (
           <div
-            className={`flex items-center gap-4 rounded-[2rem] border px-6 py-5 ${viewData.accentSoft} ${
-              viewData.highlight.direction === "up"
-                ? "border-emerald-200"
-                : "border-rose-200"
+            className={`flex items-center gap-4 rounded-[2rem] border px-6 py-5 ${accent.soft} ${
+              highlight.direction === "up" ? "border-emerald-200" : "border-rose-200"
             }`}
           >
             <div
               className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                viewData.highlight.direction === "up" ? "bg-emerald-500" : "bg-rose-500"
+                highlight.direction === "up" ? "bg-emerald-500" : "bg-rose-500"
               } text-white`}
             >
-              {viewData.highlight.direction === "up" ? <TrendingUp /> : <TrendingDown />}
+              {highlight.direction === "up" ? <TrendingUp /> : <TrendingDown />}
             </div>
             <div>
               <p className="text-base font-black text-slate-900">
-                {viewData.highlight.label} {viewData.highlight.change > 0 ? "+" : ""}
-                {viewData.highlight.change}%
+                {highlight.label} +{highlight.change}%
               </p>
-              <p className="text-sm font-semibold text-slate-500">{viewData.highlight.time}</p>
+              <p className="text-sm font-semibold text-slate-500">{highlight.time}</p>
             </div>
           </div>
         ) : (
@@ -425,11 +464,13 @@ export default function SentimentTab() {
           <div>
             <h3 className="text-lg font-black text-slate-900">AI 여론 요약</h3>
             <p className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
-              {title}
+              {analysisType === "couple" ? "커플" : "개인"} 인사이트
             </p>
           </div>
         </div>
-        <p className="text-sm font-semibold leading-7 text-slate-600">{viewData.summary}</p>
+        <p className="text-sm font-semibold leading-7 text-slate-600">
+          {overview?.summary || "아직 요약 데이터가 없습니다."}
+        </p>
       </div>
     </div>
   );
