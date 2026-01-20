@@ -80,6 +80,9 @@ export default function PredictTab() {
   const [finalZeroVote, setFinalZeroVote] = useState<number | "">("");
   const [popularOneVote, setPopularOneVote] = useState<number | "">("");
   const [finalSubmitting, setFinalSubmitting] = useState(false);
+  const finalVoteLocked = Boolean(
+    overview?.season_final_zero_vote && overview?.season_popular_one
+  );
 
   const [messageSelection, setMessageSelection] = useState<PairSelection>({
     femaleId: null,
@@ -241,6 +244,15 @@ export default function PredictTab() {
       if (!res.ok) {
         throw new Error("최종 투표 제출에 실패했어요.");
       }
+      setOverview((prev) =>
+        prev
+          ? {
+              ...prev,
+              season_final_zero_vote: finalZeroVote,
+              season_popular_one: popularOneVote,
+            }
+          : prev
+      );
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
@@ -726,7 +738,8 @@ export default function PredictTab() {
               <select
                 value={finalZeroVote}
                 onChange={(event) => setFinalZeroVote(Number(event.target.value))}
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                disabled={finalVoteLocked}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-200"
               >
                 <option value="">선택하세요</option>
                 {participants.map((participant) => (
@@ -741,7 +754,8 @@ export default function PredictTab() {
               <select
                 value={popularOneVote}
                 onChange={(event) => setPopularOneVote(Number(event.target.value))}
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                disabled={finalVoteLocked}
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-200"
               >
                 <option value="">선택하세요</option>
                 {participants.map((participant) => (
@@ -755,10 +769,10 @@ export default function PredictTab() {
           <button
             type="button"
             onClick={handleFinalVoteSubmit}
-            disabled={finalSubmitting || !finalZeroVote || !popularOneVote}
-            className="mt-6 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white disabled:bg-slate-300"
+            disabled={finalSubmitting || finalVoteLocked || !finalZeroVote || !popularOneVote}
+            className="mt-6 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {finalSubmitting ? "제출 중..." : "투표 제출하기"}
+            {finalVoteLocked ? "제출 완료" : finalSubmitting ? "제출 중..." : "투표 제출하기"}
           </button>
         </div>
       )}
