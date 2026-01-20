@@ -40,6 +40,7 @@ interface OverviewResponse {
   season_final_vote_open: boolean;
   season_couples_locked: boolean;
   season_couples: SeasonPair[];
+  episode_predictions_locked?: boolean;
   participants: Participant[];
   episode_items: PredictionItem[];
   season_final_zero_vote?: number | null;
@@ -297,6 +298,9 @@ export default function PredictTab() {
       if (!res.ok) {
         throw new Error("회차 예측 제출에 실패했어요.");
       }
+      setOverview((prev) =>
+        prev ? { ...prev, episode_predictions_locked: true } : prev
+      );
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
@@ -1034,10 +1038,14 @@ export default function PredictTab() {
         <button
           type="button"
           onClick={handleEpisodeSubmit}
-          disabled={episodeSubmitting}
-          className="mt-8 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white disabled:bg-slate-300"
+          disabled={episodeSubmitting || overview?.episode_predictions_locked}
+          className="mt-8 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          {episodeSubmitting ? "제출 중..." : "예측 제출하기"}
+          {overview?.episode_predictions_locked
+            ? "제출 완료"
+            : episodeSubmitting
+            ? "제출 중..."
+            : "예측 제출하기"}
         </button>
       </div>
     </div>
