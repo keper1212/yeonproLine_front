@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
-import { Clock, Heart, MessageCircle, MessageCircleHeart, Sparkles } from "lucide-react";
+import { Clock, Heart, MessageCircleHeart, Sparkles } from "lucide-react";
 
 interface Participant {
   id: number;
@@ -51,6 +51,13 @@ interface PairSelection {
   maleId: number | null;
 }
 
+type LinkLine = {
+  key: string;
+  x1: number; y1: number;
+  x2: number; y2: number;
+  mx: number; my: number;
+};
+
 const backendUrl =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
@@ -84,6 +91,15 @@ export default function PredictTab() {
     {}
   );
   const [episodeSubmitting, setEpisodeSubmitting] = useState(false);
+
+  // ✅ 선 그리기 위한 ref/상태
+  const pairBoardRef = useRef<HTMLDivElement | null>(null);
+  const cardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const [seasonLines, setSeasonLines] = useState<LinkLine[]>([]);
+
+  const messageBoardRef = useRef<HTMLDivElement | null>(null);
+  const messageCardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const [messageLines, setMessageLines] = useState<LinkLine[]>([]);
 
   const participants = overview?.participants ?? [];
   const femaleParticipants = participants.filter((p) => p.gender === "female");
@@ -276,21 +292,178 @@ export default function PredictTab() {
     }
   };
 
+  // ✅ 직선 라인 계산
+  const computeSeasonLines = () => {
+    const board = pairBoardRef.current;
+    if (!board) return;
+
+    const boardRect = board.getBoundingClientRect();
+    const lines: LinkLine[] = [];
+
+    for (const pair of seasonPairs) {
+      const femaleEl = cardRefs.current[pair.female_id];
+      const maleEl = cardRefs.current[pair.male_id];
+      if (!femaleEl || !maleEl) continue;
+
+      const f = femaleEl.getBoundingClientRect();
+      const m = maleEl.getBoundingClientRect();
+
+      const x1 = (m.left + m.width / 2) - boardRect.left;
+      const y1 = (m.top + m.height / 2) - boardRect.top;
+      const x2 = (f.left + f.width / 2) - boardRect.left;
+      const y2 = (f.top + f.height / 2) - boardRect.top;
+
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+
+      lines.push({ key: `${pair.male_id}-${pair.female_id}`, x1, y1, x2, y2, mx, my });
+    }
+
+    setSeasonLines(lines);
+  };
+
+  const computeMessageLines = () => {
+    const board = messageBoardRef.current;
+    if (!board) return;
+
+    const boardRect = board.getBoundingClientRect();
+    const lines: LinkLine[] = [];
+
+    for (const pair of messagePairs) {
+      const femaleEl = messageCardRefs.current[pair.female_id];
+      const maleEl = messageCardRefs.current[pair.male_id];
+      if (!femaleEl || !maleEl) continue;
+
+      const f = femaleEl.getBoundingClientRect();
+      const m = maleEl.getBoundingClientRect();
+
+      const x1 = (m.left + m.width / 2) - boardRect.left;
+      const y1 = (m.top + m.height / 2) - boardRect.top;
+      const x2 = (f.left + f.width / 2) - boardRect.left;
+      const y2 = (f.top + f.height / 2) - boardRect.top;
+
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+
+      lines.push({
+        key: `msg-${pair.male_id}-${pair.female_id}`,
+        x1, y1, x2, y2, mx, my
+      });
+    }
+
+    setMessageLines(lines);
+  };
+
+  function getScrollParents(el: HTMLElement | null) {
+    const parents: (HTMLElement | Window)[] = [];
+    if (!el) return parents;
+
+    let parent: HTMLElement | null = el.parentElement;
+    while (parent) {
+      const style = window.getComputedStyle(parent);
+      const overflowY = style.overflowY;
+      const overflowX = style.overflowX;
+
+      const isScrollableY = overflowY === "auto" || overflowY === "scroll";
+      const isScrollableX = overflowX === "auto" || overflowX === "scroll";
+
+      if (isScrollableY || isScrollableX) parents.push(parent);
+      parent = parent.parentElement;
+    }
+
+    // 마지막으로 window도 포함 (페이지 스크롤일 때)
+    parents.push(window);
+    return parents;
+  }
+
+  useLayoutEffect(() => {
+    computeSeasonLines();
+    computeMessageLines();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    seasonPairs,
+    messagePairs,
+    overview?.season_couples_locked,
+    participants.length,
+  ]);
+
+  useEffect(() => {
+    let raf = 0;
+
+    const onScrollOrResize = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        computeSeasonLines();
+        computeMessageLines();
+        raf = 0;
+      });
+    };
+
+    // ✅ 두 보드의 스크롤 부모들을 모두 합집합으로 등록
+    const boards = [pairBoardRef.current, messageBoardRef.current].filter(Boolean) as HTMLElement[];
+    const parentsSet = new Set<HTMLElement | Window>();
+
+    boards.forEach((b) => {
+      getScrollParents(b).forEach((p) => parentsSet.add(p));
+    });
+
+    const scrollParents = Array.from(parentsSet);
+
+    window.addEventListener("resize", onScrollOrResize);
+
+    scrollParents.forEach((p) => {
+      if (p === window) {
+        window.addEventListener("scroll", onScrollOrResize, { passive: true });
+      } else {
+        (p as HTMLElement).addEventListener("scroll", onScrollOrResize, { passive: true });
+      }
+    });
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", onScrollOrResize);
+      window.visualViewport.addEventListener("scroll", onScrollOrResize);
+    }
+
+    onScrollOrResize();
+
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+
+      window.removeEventListener("resize", onScrollOrResize);
+
+      scrollParents.forEach((p) => {
+        if (p === window) {
+          window.removeEventListener("scroll", onScrollOrResize);
+        } else {
+          (p as HTMLElement).removeEventListener("scroll", onScrollOrResize);
+        }
+      });
+
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener("resize", onScrollOrResize);
+        window.visualViewport.removeEventListener("scroll", onScrollOrResize);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const renderParticipantCard = (
     participant: Participant,
     active: boolean,
     disabled: boolean,
-    onClick: () => void
+    onClick: () => void,
+    registerRef?: (el: HTMLButtonElement | null) => void
   ) => (
     <button
+      ref={registerRef}
       key={participant.id}
       onClick={onClick}
       disabled={disabled}
-      className={`relative flex h-40 w-40 flex-col items-center justify-center gap-3 rounded-3xl border-2 px-4 py-4 transition-all ${
+      className={`relative flex w-full max-w-[140px] flex-col items-center justify-center gap-2 rounded-3xl border-2 px-3 py-3 transition-all sm:max-w-[190px] ${
         active ? "border-pink-400 bg-pink-50" : "border-slate-200 bg-white"
       } ${disabled ? "opacity-40 cursor-not-allowed" : "hover:-translate-y-0.5"}`}
     >
-      <div className="h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+      <div className="h-14 w-14 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 sm:h-24 sm:w-24">
         {participant.image_url ? (
           <img
             src={participant.image_url}
@@ -381,52 +554,96 @@ export default function PredictTab() {
                 )}
               </div>
 
-              <div className="grid gap-2 md:grid-cols-2">
-                <div className="flex flex-col items-center space-y-2">
-                  <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
-                  <div className="flex flex-col items-center space-y-1">
-                    {maleParticipants.map((participant) => {
-                      const disabled =
-                        overview?.season_couples_locked ||
-                        seasonPairs.some(
-                          (pair) => pair.male_id === participant.id
+              {/* ✅ 여기부터: 보드 + SVG 오버레이 */}
+              <div ref={pairBoardRef} className="relative">
+                <svg
+                  className="pointer-events-none absolute inset-0 h-full w-full"
+                  style={{ zIndex: 5 }}
+                  aria-hidden
+                >
+                  {seasonLines.map((l) => (
+                    <g key={l.key}>
+                      <line
+                        x1={l.x1} y1={l.y1}
+                        x2={l.x2} y2={l.y2}
+                        stroke="#fb7185"
+                        strokeWidth={6}
+                        strokeLinecap="round"
+                        opacity={0.85}
+                      />
+                      <circle
+                        cx={l.mx} cy={l.my}
+                        r={14}
+                        fill="#fb7185"
+                        opacity={0.95}
+                      />
+                      <text
+                        x={l.mx}
+                        y={l.my + 5}
+                        textAnchor="middle"
+                        fontSize="16"
+                        fill="white"
+                        fontWeight="700"
+                      >
+                        ♥
+                      </text>
+                    </g>
+                  ))}
+                </svg>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col items-center space-y-2">
+                    <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
+                    <div className="flex flex-col items-center space-y-1">
+                      {maleParticipants.map((participant) => {
+                        const disabled =
+                          overview?.season_couples_locked ||
+                          seasonPairs.some((pair) => pair.male_id === participant.id);
+
+                        return renderParticipantCard(
+                          participant,
+                          seasonSelection.maleId === participant.id,
+                          disabled,
+                          () =>
+                            setSeasonSelection((prev) => ({
+                              ...prev,
+                              maleId: participant.id,
+                            })),
+                          (el) => {
+                            cardRefs.current[participant.id] = el;
+                          }
                         );
-                      return renderParticipantCard(
-                        participant,
-                        seasonSelection.maleId === participant.id,
-                        disabled,
-                        () =>
-                          setSeasonSelection((prev) => ({
-                            ...prev,
-                            maleId: participant.id,
-                          }))
-                      );
-                    })}
+                      })}
+                    </div>
                   </div>
-                </div>
-                <div className="flex flex-col items-center space-y-2">
-                  <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
-                  <div className="flex flex-col items-center space-y-1">
-                    {femaleParticipants.map((participant) => {
-                      const disabled =
-                        overview?.season_couples_locked ||
-                        seasonPairs.some(
-                          (pair) => pair.female_id === participant.id
+
+                  <div className="flex flex-col items-center space-y-2">
+                    <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
+                    <div className="flex flex-col items-center space-y-1">
+                      {femaleParticipants.map((participant) => {
+                        const disabled =
+                          overview?.season_couples_locked ||
+                          seasonPairs.some((pair) => pair.female_id === participant.id);
+
+                        return renderParticipantCard(
+                          participant,
+                          seasonSelection.femaleId === participant.id,
+                          disabled,
+                          () =>
+                            setSeasonSelection((prev) => ({
+                              ...prev,
+                              femaleId: participant.id,
+                            })),
+                          (el) => {
+                            cardRefs.current[participant.id] = el;
+                          }
                         );
-                      return renderParticipantCard(
-                        participant,
-                        seasonSelection.femaleId === participant.id,
-                        disabled,
-                        () =>
-                          setSeasonSelection((prev) => ({
-                            ...prev,
-                            femaleId: participant.id,
-                          }))
-                      );
-                    })}
+                      })}
+                    </div>
                   </div>
                 </div>
               </div>
+              {/* ✅ 여기까지 */}
 
               <div className="mt-6 space-y-3">
                 <p className="text-xs font-semibold text-pink-500">
@@ -496,6 +713,7 @@ export default function PredictTab() {
         )}
       </div>
 
+      {/* 아래는 원본 그대로 (시즌 최종 투표 / 회차별 예측 등) */}
       {overview?.season_final_vote_open && (
         <div className="rounded-[2rem] border border-slate-200 bg-white px-6 py-6">
           <p className="text-base font-black text-slate-900">
@@ -563,45 +781,87 @@ export default function PredictTab() {
               출연자를 선택해 문자 발송 커플을 만들어보세요.
             </p>
 
-            <div className="mt-5 grid gap-2 md:grid-cols-2">
-              <div className="flex flex-col items-center space-y-2">
-                <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
-                <div className="flex flex-col items-center space-y-1">
-                  {maleParticipants.map((participant) => {
-                    const disabled = messagePairs.some(
-                      (pair) => pair.male_id === participant.id
-                    );
-                    return renderParticipantCard(
-                      participant,
-                      messageSelection.maleId === participant.id,
-                      disabled,
-                      () =>
-                        setMessageSelection((prev) => ({
-                          ...prev,
-                          maleId: participant.id,
-                        }))
-                    );
-                  })}
+            <div ref={messageBoardRef} className="relative">
+              <svg
+                className="pointer-events-none absolute inset-0 h-full w-full"
+                style={{ zIndex: 5 }}
+                aria-hidden
+              >
+                {messageLines.map((l) => (
+                  <g key={l.key}>
+                    <line
+                      x1={l.x1} y1={l.y1}
+                      x2={l.x2} y2={l.y2}
+                      stroke="#fb7185"
+                      strokeWidth={6}
+                      strokeLinecap="round"
+                      opacity={0.85}
+                    />
+                    <circle
+                      cx={l.mx} cy={l.my}
+                      r={14}
+                      fill="#fb7185"
+                      opacity={0.95}
+                    />
+                    <text
+                      x={l.mx}
+                      y={l.my + 5}
+                      textAnchor="middle"
+                      fontSize="16"
+                      fill="white"
+                      fontWeight="700"
+                    >
+                      ♥
+                    </text>
+                  </g>
+                ))}
+              </svg>
+
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <div className="flex flex-col items-center space-y-2">
+                  <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    {maleParticipants.map((participant) => {
+                      const disabled = messagePairs.some((pair) => pair.male_id === participant.id);
+
+                      return renderParticipantCard(
+                        participant,
+                        messageSelection.maleId === participant.id,
+                        disabled,
+                        () =>
+                          setMessageSelection((prev) => ({
+                            ...prev,
+                            maleId: participant.id,
+                          })),
+                        (el) => {
+                          messageCardRefs.current[participant.id] = el;
+                        }
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-              <div className="flex flex-col items-center space-y-2">
-                <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
-                <div className="flex flex-col items-center space-y-1">
-                  {femaleParticipants.map((participant) => {
-                    const disabled = messagePairs.some(
-                      (pair) => pair.female_id === participant.id
-                    );
-                    return renderParticipantCard(
-                      participant,
-                      messageSelection.femaleId === participant.id,
-                      disabled,
-                      () =>
-                        setMessageSelection((prev) => ({
-                          ...prev,
-                          femaleId: participant.id,
-                        }))
-                    );
-                  })}
+
+                <div className="flex flex-col items-center space-y-2">
+                  <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    {femaleParticipants.map((participant) => {
+                      const disabled = messagePairs.some((pair) => pair.female_id === participant.id);
+
+                      return renderParticipantCard(
+                        participant,
+                        messageSelection.femaleId === participant.id,
+                        disabled,
+                        () =>
+                          setMessageSelection((prev) => ({
+                            ...prev,
+                            femaleId: participant.id,
+                          })),
+                        (el) => {
+                          messageCardRefs.current[participant.id] = el;
+                        }
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </div>
@@ -611,10 +871,12 @@ export default function PredictTab() {
                 <p className="text-xs font-semibold text-pink-500">
                   예측된 커플 ({messagePairs.length}쌍)
                 </p>
+
                 {messagePairs.map((pair) => {
                   const female = participants.find((p) => p.id === pair.female_id);
                   const male = participants.find((p) => p.id === pair.male_id);
                   if (!female || !male) return null;
+
                   return (
                     <div
                       key={`${pair.female_id}-${pair.male_id}`}
@@ -625,6 +887,7 @@ export default function PredictTab() {
                         <MessageCircleHeart className="h-4 w-4 text-pink-500" />
                         {male.name}
                       </div>
+
                       <button
                         type="button"
                         onClick={() =>
@@ -660,6 +923,7 @@ export default function PredictTab() {
               <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
                 <p className="text-xs font-semibold text-green-600">호감도 상승</p>
                 <select
+                  value={episodeAnswers[likeUpItem.id] ?? ""}
                   onChange={(event) =>
                     setEpisodeAnswers((prev) => ({
                       ...prev,
@@ -677,10 +941,12 @@ export default function PredictTab() {
                 </select>
               </div>
             )}
+
             {likeDownItem && (
               <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-4">
                 <p className="text-xs font-semibold text-rose-600">민심 나락</p>
                 <select
+                  value={episodeAnswers[likeDownItem.id] ?? ""}
                   onChange={(event) =>
                     setEpisodeAnswers((prev) => ({
                       ...prev,
@@ -704,6 +970,7 @@ export default function PredictTab() {
         {specialItems.length > 0 && (
           <div className="mt-6 space-y-4">
             <p className="text-base font-black text-slate-900">특수 베팅</p>
+
             {specialItems.map((item) => (
               <div
                 key={item.id}
@@ -713,16 +980,19 @@ export default function PredictTab() {
                   <p className="text-sm font-semibold text-slate-800">
                     {item.question_text}
                   </p>
+
                   {item.odds !== null && (
                     <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-600">
                       {item.odds}배
                     </span>
                   )}
                 </div>
+
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   {["O (예)", "X (아니오)"].map((label, index) => {
                     const value = index === 0 ? "yes" : "no";
                     const active = episodeAnswers[item.id] === value;
+
                     return (
                       <button
                         key={label}
