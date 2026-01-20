@@ -286,11 +286,11 @@ export default function PredictTab() {
       key={participant.id}
       onClick={onClick}
       disabled={disabled}
-      className={`relative flex flex-col items-center gap-2 rounded-3xl border-2 px-4 py-5 transition-all ${
+      className={`relative flex h-40 w-40 flex-col items-center justify-center gap-3 rounded-3xl border-2 px-4 py-4 transition-all ${
         active ? "border-pink-400 bg-pink-50" : "border-slate-200 bg-white"
       } ${disabled ? "opacity-40 cursor-not-allowed" : "hover:-translate-y-0.5"}`}
     >
-      <div className="h-20 w-20 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
+      <div className="h-24 w-24 overflow-hidden rounded-2xl border border-slate-200 bg-slate-100">
         {participant.image_url ? (
           <img
             src={participant.image_url}
@@ -381,32 +381,10 @@ export default function PredictTab() {
                 )}
               </div>
 
-              <div className="space-y-6">
-                <div className="space-y-3">
-                  <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
-                  <div className="grid grid-cols-3 gap-4">
-                    {femaleParticipants.map((participant) => {
-                      const disabled =
-                        overview?.season_couples_locked ||
-                        seasonPairs.some(
-                          (pair) => pair.female_id === participant.id
-                        );
-                      return renderParticipantCard(
-                        participant,
-                        seasonSelection.femaleId === participant.id,
-                        disabled,
-                        () =>
-                          setSeasonSelection((prev) => ({
-                            ...prev,
-                            femaleId: participant.id,
-                          }))
-                      );
-                    })}
-                  </div>
-                </div>
-                <div className="space-y-3">
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="flex flex-col items-center space-y-2">
                   <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="flex flex-col items-center space-y-1">
                     {maleParticipants.map((participant) => {
                       const disabled =
                         overview?.season_couples_locked ||
@@ -421,6 +399,28 @@ export default function PredictTab() {
                           setSeasonSelection((prev) => ({
                             ...prev,
                             maleId: participant.id,
+                          }))
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="flex flex-col items-center space-y-2">
+                  <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    {femaleParticipants.map((participant) => {
+                      const disabled =
+                        overview?.season_couples_locked ||
+                        seasonPairs.some(
+                          (pair) => pair.female_id === participant.id
+                        );
+                      return renderParticipantCard(
+                        participant,
+                        seasonSelection.femaleId === participant.id,
+                        disabled,
+                        () =>
+                          setSeasonSelection((prev) => ({
+                            ...prev,
+                            femaleId: participant.id,
                           }))
                       );
                     })}
@@ -563,40 +563,46 @@ export default function PredictTab() {
               출연자를 선택해 문자 발송 커플을 만들어보세요.
             </p>
 
-            <div className="mt-5 space-y-5">
-              <div className="grid grid-cols-3 gap-4">
-                {femaleParticipants.map((participant) => {
-                  const disabled = messagePairs.some(
-                    (pair) => pair.female_id === participant.id
-                  );
-                  return renderParticipantCard(
-                    participant,
-                    messageSelection.femaleId === participant.id,
-                    disabled,
-                    () =>
-                      setMessageSelection((prev) => ({
-                        ...prev,
-                        femaleId: participant.id,
-                      }))
-                  );
-                })}
+            <div className="mt-5 grid gap-2 md:grid-cols-2">
+              <div className="flex flex-col items-center space-y-2">
+                <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
+                <div className="flex flex-col items-center space-y-1">
+                  {maleParticipants.map((participant) => {
+                    const disabled = messagePairs.some(
+                      (pair) => pair.male_id === participant.id
+                    );
+                    return renderParticipantCard(
+                      participant,
+                      messageSelection.maleId === participant.id,
+                      disabled,
+                      () =>
+                        setMessageSelection((prev) => ({
+                          ...prev,
+                          maleId: participant.id,
+                        }))
+                    );
+                  })}
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                {maleParticipants.map((participant) => {
-                  const disabled = messagePairs.some(
-                    (pair) => pair.male_id === participant.id
-                  );
-                  return renderParticipantCard(
-                    participant,
-                    messageSelection.maleId === participant.id,
-                    disabled,
-                    () =>
-                      setMessageSelection((prev) => ({
-                        ...prev,
-                        maleId: participant.id,
-                      }))
-                  );
-                })}
+              <div className="flex flex-col items-center space-y-2">
+                <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
+                <div className="flex flex-col items-center space-y-1">
+                  {femaleParticipants.map((participant) => {
+                    const disabled = messagePairs.some(
+                      (pair) => pair.female_id === participant.id
+                    );
+                    return renderParticipantCard(
+                      participant,
+                      messageSelection.femaleId === participant.id,
+                      disabled,
+                      () =>
+                        setMessageSelection((prev) => ({
+                          ...prev,
+                          femaleId: participant.id,
+                        }))
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
