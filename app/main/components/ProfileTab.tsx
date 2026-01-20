@@ -62,6 +62,16 @@ type BadgeCollection = {
   badges: BadgeItem[];
 };
 
+type Participant = {
+  id: number;
+  name: string;
+  gender: "male" | "female";
+};
+
+type OverviewResponse = {
+  participants: Participant[];
+};
+
 type AccuracyPoint = {
   episode_id: number;
   accuracy_rate: number;
@@ -101,6 +111,7 @@ export default function ProfileTab() {
   const [badges, setBadges] = useState<BadgeItem[]>([]);
   const [accuracy, setAccuracy] = useState<AccuracyPoint[]>([]);
   const [history, setHistory] = useState<EpisodePredictions[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -123,12 +134,13 @@ export default function ProfileTab() {
           Authorization: `Bearer ${token}`,
         };
 
-        const [summaryRes, badgesRes, accuracyRes, historyRes] =
+        const [summaryRes, badgesRes, accuracyRes, historyRes, overviewRes] =
           await Promise.all([
             fetch(`${backendUrl}/users/me`, { headers }),
             fetch(`${backendUrl}/users/me/badges`, { headers }),
             fetch(`${backendUrl}/users/me/stats/accuracy`, { headers }),
             fetch(`${backendUrl}/users/me/predictions`, { headers }),
+            fetch(`${backendUrl}/predictions/overview`, { headers }),
           ]);
 
         if (!summaryRes.ok) throw new Error("요약 정보를 불러오지 못했습니다.");
@@ -140,11 +152,15 @@ export default function ProfileTab() {
         const badgesData = (await badgesRes.json()) as BadgeCollection;
         const accuracyData = (await accuracyRes.json()) as AccuracyTrend;
         const historyData = (await historyRes.json()) as PredictionHistory;
+        const overviewData = overviewRes.ok
+          ? ((await overviewRes.json()) as OverviewResponse)
+          : { participants: [] };
 
         setSummary(summaryData);
         setBadges(badgesData.badges ?? []);
         setAccuracy(accuracyData.points ?? []);
         setHistory(historyData.episodes ?? []);
+        setParticipants(overviewData.participants ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
       } finally {
@@ -191,6 +207,33 @@ export default function ProfileTab() {
   );
 
   const historyData = useMemo(() => {
+    const participantMap = new Map(participants.map((p) => [p.id, p]));
+    const formatValue = (item: PredictionItem) => {
+      if (!item.selected_value) return "";
+      if (item.prediction_type === "season_final_couple") {
+        const [femaleId, maleId] = item.selected_value.split(":").map(Number);
+        const femaleName = participantMap.get(femaleId)?.name;
+        const maleName = participantMap.get(maleId)?.name;
+        if (femaleName && maleName) {
+          return `${femaleName} ♥ ${maleName}`;
+        }
+      }
+      if (item.selected_value.includes(":")) {
+        const [firstId, secondId] = item.selected_value.split(":").map(Number);
+        const firstName = participantMap.get(firstId)?.name;
+        const secondName = participantMap.get(secondId)?.name;
+        if (firstName && secondName) {
+          return `${firstName} ♥ ${secondName}`;
+        }
+      }
+      const numericValue = Number(item.selected_value);
+      if (!Number.isNaN(numericValue)) {
+        const name = participantMap.get(numericValue)?.name;
+        if (name) return name;
+      }
+      return item.selected_value;
+    };
+
     return history.map((episode) => {
       const totalPoints = episode.predictions.reduce(
         (acc, item) => acc + (item.earned_points || 0),
@@ -211,7 +254,7 @@ export default function ProfileTab() {
             item.question_text ||
             predictionLabelMap[item.prediction_type] ||
             item.prediction_type,
-          value: item.selected_value,
+          value: formatValue(item),
           points:
             item.earned_points > 0
               ? `+${item.earned_points}`
@@ -222,7 +265,7 @@ export default function ProfileTab() {
         })),
       };
     });
-  }, [history]);
+  }, [history, participants]);
 
   const personalityData = useMemo(() => {
     return [
