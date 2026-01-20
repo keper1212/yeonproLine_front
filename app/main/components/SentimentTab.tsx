@@ -53,19 +53,12 @@ type SentimentOverview = {
 const backendUrl =
   process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
 
-const fallbackChart = [
-  { time: "0분", value: 52 },
-  { time: "10분", value: 56 },
-  { time: "20분", value: 59 },
-  { time: "30분", value: 62 },
-  { time: "40분", value: 64 },
-  { time: "50분", value: 66 },
-];
-
 const accentPalette = {
   couple: { line: "#ff3b73", soft: "bg-rose-50" },
   single: { line: "#1d9bf0", soft: "bg-sky-50" },
 };
+
+type TimeScale = "hour" | "day";
 
 const participantImageMap: Record<string, string> = {
   "정원규": "/participants/wonkyu.png",
@@ -89,6 +82,47 @@ function formatMinutesLabel(base: Date, current: Date) {
   return `${diff}분`;
 }
 
+function formatBucketLabel(scale: TimeScale, date: Date) {
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  if (scale === "day") {
+    return `${month}/${day}`;
+  }
+  const hour = date.getHours();
+  return `${month}/${day} ${hour}시`;
+}
+
+function bucketTime(scale: TimeScale, date: Date) {
+  const bucket = new Date(date);
+  if (scale === "day") {
+    bucket.setHours(0, 0, 0, 0);
+  } else {
+    bucket.setMinutes(0, 0, 0);
+  }
+  return bucket;
+}
+
+function buildFallbackChart(scale: TimeScale) {
+  if (scale === "day") {
+    return [
+      { time: "1/1", value: 52 },
+      { time: "1/2", value: 56 },
+      { time: "1/3", value: 59 },
+      { time: "1/4", value: 62 },
+      { time: "1/5", value: 64 },
+      { time: "1/6", value: 66 },
+    ];
+  }
+  return [
+    { time: "1/1 10시", value: 52 },
+    { time: "1/1 12시", value: 56 },
+    { time: "1/1 14시", value: 59 },
+    { time: "1/1 16시", value: 62 },
+    { time: "1/1 18시", value: 64 },
+    { time: "1/1 20시", value: 66 },
+  ];
+}
+
 function resolveImageUrl(participant: Participant | null) {
   if (!participant) return "/participants/minkyeong.png";
   if (participant.image_url) return participant.image_url;
@@ -100,6 +134,7 @@ export default function SentimentTab() {
   const [femaleId, setFemaleId] = useState<string>("");
   const [maleId, setMaleId] = useState<string>("");
   const [analysisType, setAnalysisType] = useState<"couple" | "single">("couple");
+  const [timeScale, setTimeScale] = useState<TimeScale>("hour");
   const [overview, setOverview] = useState<SentimentOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -232,13 +267,37 @@ export default function SentimentTab() {
   }, [analysisType, selectedFemale, selectedMale]);
 
   const chartData = useMemo(() => {
-    if (!overview || overview.history.length === 0) return fallbackChart;
+    if (!overview || overview.history.length === 0) {
+      return buildFallbackChart(timeScale);
+    }
+    if (timeScale === "hour" || timeScale === "day") {
+      const bucketMap = new Map<number, { total: number; count: number; date: Date }>();
+      overview.history.forEach((point) => {
+        const captured = new Date(point.captured_at);
+        const bucket = bucketTime(timeScale, captured);
+        const key = bucket.getTime();
+        const existing = bucketMap.get(key);
+        if (existing) {
+          existing.total += point.support_rate;
+          existing.count += 1;
+        } else {
+          bucketMap.set(key, { total: point.support_rate, count: 1, date: bucket });
+        }
+      });
+      const sorted = Array.from(bucketMap.values()).sort(
+        (a, b) => a.date.getTime() - b.date.getTime()
+      );
+      return sorted.map((bucket) => ({
+        time: formatBucketLabel(timeScale, bucket.date),
+        value: Math.round(bucket.total / bucket.count),
+      }));
+    }
     const base = new Date(overview.history[0].captured_at);
     return overview.history.map((point) => {
       const time = formatMinutesLabel(base, new Date(point.captured_at));
       return { time, value: point.support_rate };
     });
-  }, [overview]);
+  }, [overview, timeScale]);
 
   const highlight = useMemo(() => {
     if (!overview?.event || overview.event.event_type === "stable") return null;
@@ -423,6 +482,29 @@ export default function SentimentTab() {
           </div>
         </div>
 
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-bold text-slate-800">
+            {analysisType === "couple"
+              ? "커플 인기도 변화 추이"
+              : "개인 호감도 변화 추이"}
+          </p>
+          <div className="flex rounded-full border border-slate-200 bg-white p-1 text-xs font-bold">
+            {(["hour", "day"] as TimeScale[]).map((scale) => (
+              <button
+                key={scale}
+                onClick={() => setTimeScale(scale)}
+                className={`rounded-full px-3 py-1 transition ${
+                  timeScale === scale
+                    ? "bg-slate-900 text-white"
+                    : "text-slate-400"
+                }`}
+              >
+                {scale === "hour" ? "시간" : "일"}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="h-[240px] w-full">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
@@ -464,9 +546,6 @@ export default function SentimentTab() {
             </AreaChart>
           </ResponsiveContainer>
         </div>
-        <p className="text-sm font-bold text-slate-800">
-          {analysisType === "couple" ? "커플 인기도 변화 추이" : "개인 호감도 변화 추이"}
-        </p>
       </div>
 
       <div className="rounded-[2.75rem] border border-slate-100 bg-white p-8 shadow-sm space-y-5">
