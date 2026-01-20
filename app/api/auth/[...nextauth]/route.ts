@@ -1,7 +1,7 @@
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import GoogleProvider from "next-auth/providers/google"
 
-const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8000/api"
+const backendUrl = process.env.BACKEND_URL ?? "http://localhost:8000"
 
 export const authOptions: NextAuthOptions = {
   providers: [
