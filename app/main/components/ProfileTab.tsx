@@ -30,6 +30,14 @@ const badgeIconMap: Record<string, string> = {
 };
 
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000";
+const predictionLabelMap: Record<string, string> = {
+  season_final_couple: "최종 커플 예측",
+  final_zero_vote: "최종 0표 출연자 예측",
+  season_popular_one: "시즌 인기 1위 출연자 예측",
+  message_target: "누가 문자를 받을까?",
+  like_up: "호감도 상승 출연자는?",
+  like_down: "민심 나락 출연자는?",
+};
 
 type UserSummary = {
   nickname: string;
@@ -67,7 +75,10 @@ type AccuracyTrend = {
 
 type PredictionItem = {
   id: number;
+  prediction_item_id?: number | null;
   prediction_type: string;
+  question_text?: string | null;
+  category?: string | null;
   target_participant_id?: number | null;
   selected_value: string;
   betting_points: number;
@@ -196,7 +207,11 @@ export default function ProfileTab() {
         totalPoints: `${totalPoints >= 0 ? "+" : ""}${totalPoints} pt`,
         correctRatio: `${correctCount}/${totalCount} 정답`,
         details: episode.predictions.map((item) => ({
-          label: item.prediction_type,
+          label:
+            item.question_text ||
+            predictionLabelMap[item.prediction_type] ||
+            item.prediction_type,
+          value: item.selected_value,
           points:
             item.earned_points > 0
               ? `+${item.earned_points}`
@@ -452,6 +467,7 @@ export default function ProfileTab() {
                           )}
                           <span className="text-xs font-medium text-slate-600">
                             {detail.label}
+                            {detail.value ? `: ${detail.value}` : ""}
                           </span>
                         </div>
                         <span className="text-xs font-bold text-amber-500">
