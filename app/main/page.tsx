@@ -4,6 +4,7 @@ import { useState } from "react";
 import TopTab from "./components/TopTab";
 import PredictTab from "./components/PredictTab";
 import ProfileTab from "./components/ProfileTab";
+import SentimentTab from "./components/SentimentTab";
 
 export default function MainPage() {
   const [selectedTab, setSelectedTab] = useState("예측");
@@ -16,7 +17,7 @@ export default function MainPage() {
       {/* 탭별 컨텐츠 */}
       <div className="w-full mt-12">
         {selectedTab === "예측" && <PredictTab />}
-        {selectedTab === "민심" && <div>민심</div>}
+        {selectedTab === "민심" && <SentimentTab />}
         {selectedTab === "채팅" && <div>채팅</div>}
         {selectedTab === "순위" && <div>순위</div>}
         {selectedTab === "내정보" && <ProfileTab />}
