@@ -30,6 +30,7 @@ type Participant = {
 type SentimentPoint = {
   captured_at: string;
   support_rate: number;
+  episode_id?: number | null;
 };
 
 type SentimentEvent = {
@@ -58,7 +59,7 @@ const accentPalette = {
   single: { line: "#1d9bf0", soft: "bg-sky-50" },
 };
 
-type TimeScale = "hour" | "day";
+type TimeScale = "day" | "episode";
 
 const participantImageMap: Record<string, string> = {
   "정원규": "/participants/wonkyu.png",
@@ -85,20 +86,12 @@ function formatMinutesLabel(base: Date, current: Date) {
 function formatBucketLabel(scale: TimeScale, date: Date) {
   const month = date.getMonth() + 1;
   const day = date.getDate();
-  if (scale === "day") {
-    return `${month}/${day}`;
-  }
-  const hour = date.getHours();
-  return `${month}/${day} ${hour}시`;
+  return `${month}/${day}`;
 }
 
 function bucketTime(scale: TimeScale, date: Date) {
   const bucket = new Date(date);
-  if (scale === "day") {
-    bucket.setHours(0, 0, 0, 0);
-  } else {
-    bucket.setMinutes(0, 0, 0);
-  }
+  bucket.setHours(0, 0, 0, 0);
   return bucket;
 }
 
@@ -114,12 +107,12 @@ function buildFallbackChart(scale: TimeScale) {
     ];
   }
   return [
-    { time: "1/1 10시", value: 52 },
-    { time: "1/1 12시", value: 56 },
-    { time: "1/1 14시", value: 59 },
-    { time: "1/1 16시", value: 62 },
-    { time: "1/1 18시", value: 64 },
-    { time: "1/1 20시", value: 66 },
+    { time: "EP.1", value: 52 },
+    { time: "EP.2", value: 56 },
+    { time: "EP.3", value: 59 },
+    { time: "EP.4", value: 62 },
+    { time: "EP.5", value: 64 },
+    { time: "EP.6", value: 66 },
   ];
 }
 
@@ -134,7 +127,7 @@ export default function SentimentTab() {
   const [femaleId, setFemaleId] = useState<string>("");
   const [maleId, setMaleId] = useState<string>("");
   const [analysisType, setAnalysisType] = useState<"couple" | "single">("couple");
-  const [timeScale, setTimeScale] = useState<TimeScale>("hour");
+  const [timeScale, setTimeScale] = useState<TimeScale>("day");
   const [autoSyncSelection, setAutoSyncSelection] = useState(true);
   const [overview, setOverview] = useState<SentimentOverview | null>(null);
   const [loading, setLoading] = useState(true);
@@ -272,7 +265,7 @@ export default function SentimentTab() {
     if (!overview || overview.history.length === 0) {
       return buildFallbackChart(timeScale);
     }
-    if (timeScale === "hour" || timeScale === "day") {
+    if (timeScale === "day") {
       const bucketMap = new Map<number, { total: number; count: number; date: Date }>();
       overview.history.forEach((point) => {
         const captured = new Date(point.captured_at);
@@ -291,6 +284,24 @@ export default function SentimentTab() {
       );
       return sorted.map((bucket) => ({
         time: formatBucketLabel(timeScale, bucket.date),
+        value: Math.round(bucket.total / bucket.count),
+      }));
+    }
+    if (timeScale === "episode") {
+      const episodeMap = new Map<number, { total: number; count: number }>();
+      overview.history.forEach((point) => {
+        if (!point.episode_id) return;
+        const existing = episodeMap.get(point.episode_id);
+        if (existing) {
+          existing.total += point.support_rate;
+          existing.count += 1;
+        } else {
+          episodeMap.set(point.episode_id, { total: point.support_rate, count: 1 });
+        }
+      });
+      const sorted = Array.from(episodeMap.entries()).sort((a, b) => a[0] - b[0]);
+      return sorted.map(([episodeId, bucket]) => ({
+        time: `EP.${episodeId}`,
         value: Math.round(bucket.total / bucket.count),
       }));
     }
@@ -415,12 +426,12 @@ export default function SentimentTab() {
             <>
               <div className="flex flex-col items-center gap-3">
                 <img
-                  src={resolveImageUrl(selectedFemale)}
-                  alt={selectedFemale.name}
-                  className="h-20 w-20 rounded-full border-2 border-rose-300 object-cover shadow-sm"
+                  src={resolveImageUrl(selectedMale)}
+                  alt={selectedMale.name}
+                  className="h-20 w-20 rounded-full border-2 border-slate-300 object-cover shadow-sm"
                 />
                 <span className="text-sm font-bold text-slate-700">
-                  {selectedFemale.name}
+                  {selectedMale.name}
                 </span>
               </div>
               <div className="flex flex-col items-center gap-2 text-rose-500">
@@ -429,12 +440,12 @@ export default function SentimentTab() {
               </div>
               <div className="flex flex-col items-center gap-3">
                 <img
-                  src={resolveImageUrl(selectedMale)}
-                  alt={selectedMale.name}
-                  className="h-20 w-20 rounded-full border-2 border-slate-300 object-cover shadow-sm"
+                  src={resolveImageUrl(selectedFemale)}
+                  alt={selectedFemale.name}
+                  className="h-20 w-20 rounded-full border-2 border-rose-300 object-cover shadow-sm"
                 />
                 <span className="text-sm font-bold text-slate-700">
-                  {selectedMale.name}
+                  {selectedFemale.name}
                 </span>
               </div>
             </>
@@ -500,7 +511,7 @@ export default function SentimentTab() {
               : "개인 호감도 변화 추이"}
           </p>
           <div className="flex rounded-full border border-slate-200 bg-white p-1 text-xs font-bold">
-            {(["hour", "day"] as TimeScale[]).map((scale) => (
+            {(["day", "episode"] as TimeScale[]).map((scale) => (
               <button
                 key={scale}
                 onClick={() => setTimeScale(scale)}
@@ -510,7 +521,7 @@ export default function SentimentTab() {
                     : "text-slate-400"
                 }`}
               >
-                {scale === "hour" ? "시간" : "일"}
+                {scale === "day" ? "일" : "회차"}
               </button>
             ))}
           </div>

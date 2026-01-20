@@ -532,8 +532,7 @@ export default function PredictTab() {
             현재는 시즌 시작 예측 기간이 아닙니다.
           </div>
         )}
-        {overview?.season_start_open ? (
-          <div className="rounded-[2rem] border border-pink-200 bg-pink-50/60 px-6 py-6">
+        <div className="rounded-[2rem] border border-pink-200 bg-pink-50/60 px-6 py-6">
             <div className="mb-6 flex items-center justify-between">
               <div>
                 <p className="text-base font-black text-slate-900">
@@ -543,7 +542,7 @@ export default function PredictTab() {
                   커플은 한번 제출하면 수정할 수 없어요.
                 </p>
               </div>
-              {!overview?.season_couples_locked && (
+              {!overview?.season_couples_locked && overview?.season_start_open && (
                 <button
                   type="button"
                   onClick={() => setSeasonPairs([])}
@@ -596,6 +595,7 @@ export default function PredictTab() {
                   <div className="flex flex-col items-center space-y-1">
                     {maleParticipants.map((participant) => {
                       const disabled =
+                        !overview?.season_start_open ||
                         overview?.season_couples_locked ||
                         seasonPairs.some((pair) => pair.male_id === participant.id);
 
@@ -621,6 +621,7 @@ export default function PredictTab() {
                   <div className="flex flex-col items-center space-y-1">
                     {femaleParticipants.map((participant) => {
                       const disabled =
+                        !overview?.season_start_open ||
                         overview?.season_couples_locked ||
                         seasonPairs.some((pair) => pair.female_id === participant.id);
 
@@ -666,7 +667,7 @@ export default function PredictTab() {
                       <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
                       {male.name}
                     </div>
-                    {!overview?.season_couples_locked && (
+                    {!overview?.season_couples_locked && overview?.season_start_open && (
                       <button
                         type="button"
                         onClick={() =>
@@ -695,6 +696,7 @@ export default function PredictTab() {
               onClick={handleSeasonSubmit}
               disabled={
                 seasonSubmitting ||
+                !overview?.season_start_open ||
                 overview?.season_couples_locked ||
                 seasonPairs.length === 0
               }
@@ -707,34 +709,6 @@ export default function PredictTab() {
                 : "예측 제출하기"}
             </button>
           </div>
-        ) : (
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-50 px-6 py-6">
-            <p className="text-xs font-semibold text-slate-500">내 예측</p>
-            {seasonPairs.length === 0 ? (
-              <p className="mt-3 text-sm text-slate-400">
-                아직 제출한 시즌 예측이 없습니다.
-              </p>
-            ) : (
-              <div className="mt-4 space-y-3">
-                {seasonPairs.map((pair) => {
-                  const female = participants.find((p) => p.id === pair.female_id);
-                  const male = participants.find((p) => p.id === pair.male_id);
-                  if (!female || !male) return null;
-                  return (
-                    <div
-                      key={`${pair.female_id}-${pair.male_id}`}
-                      className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
-                    >
-                      {female.name}
-                      <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
-                      {male.name}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* 아래는 원본 그대로 (시즌 최종 투표 / 회차별 예측 등) */}
