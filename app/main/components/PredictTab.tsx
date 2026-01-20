@@ -527,133 +527,195 @@ export default function PredictTab() {
           </div>
         </div>
 
-        {!overview?.season_start_open ? (
+        {!overview?.season_start_open && (
           <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500">
             현재는 시즌 시작 예측 기간이 아닙니다.
           </div>
-        ) : (
-          <>
-            <div className="rounded-[2rem] border border-pink-200 bg-pink-50/60 px-6 py-6">
-              <div className="mb-6 flex items-center justify-between">
-                <div>
-                  <p className="text-base font-black text-slate-900">
-                    최종 커플 예측 (Love-Line)
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    커플은 한번 제출하면 수정할 수 없어요.
-                  </p>
-                </div>
-                {!overview?.season_couples_locked && (
-                  <button
-                    type="button"
-                    onClick={() => setSeasonPairs([])}
-                    className="text-xs font-semibold text-slate-400 hover:text-pink-500"
-                  >
-                    초기화
-                  </button>
-                )}
-              </div>
-
-              {/* ✅ 여기부터: 보드 + SVG 오버레이 */}
-              <div ref={pairBoardRef} className="relative">
-                <svg
-                  className="pointer-events-none absolute inset-0 h-full w-full"
-                  style={{ zIndex: 5 }}
-                  aria-hidden
-                >
-                  {seasonLines.map((l) => (
-                    <g key={l.key}>
-                      <line
-                        x1={l.x1} y1={l.y1}
-                        x2={l.x2} y2={l.y2}
-                        stroke="#fb7185"
-                        strokeWidth={6}
-                        strokeLinecap="round"
-                        opacity={0.85}
-                      />
-                      <circle
-                        cx={l.mx} cy={l.my}
-                        r={14}
-                        fill="#fb7185"
-                        opacity={0.95}
-                      />
-                      <text
-                        x={l.mx}
-                        y={l.my + 5}
-                        textAnchor="middle"
-                        fontSize="16"
-                        fill="white"
-                        fontWeight="700"
-                      >
-                        ♥
-                      </text>
-                    </g>
-                  ))}
-                </svg>
-
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="flex flex-col items-center space-y-2">
-                    <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
-                    <div className="flex flex-col items-center space-y-1">
-                      {maleParticipants.map((participant) => {
-                        const disabled =
-                          overview?.season_couples_locked ||
-                          seasonPairs.some((pair) => pair.male_id === participant.id);
-
-                        return renderParticipantCard(
-                          participant,
-                          seasonSelection.maleId === participant.id,
-                          disabled,
-                          () =>
-                            setSeasonSelection((prev) => ({
-                              ...prev,
-                              maleId: participant.id,
-                            })),
-                          (el) => {
-                            cardRefs.current[participant.id] = el;
-                          }
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col items-center space-y-2">
-                    <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
-                    <div className="flex flex-col items-center space-y-1">
-                      {femaleParticipants.map((participant) => {
-                        const disabled =
-                          overview?.season_couples_locked ||
-                          seasonPairs.some((pair) => pair.female_id === participant.id);
-
-                        return renderParticipantCard(
-                          participant,
-                          seasonSelection.femaleId === participant.id,
-                          disabled,
-                          () =>
-                            setSeasonSelection((prev) => ({
-                              ...prev,
-                              femaleId: participant.id,
-                            })),
-                          (el) => {
-                            cardRefs.current[participant.id] = el;
-                          }
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {/* ✅ 여기까지 */}
-
-              <div className="mt-6 space-y-3">
-                <p className="text-xs font-semibold text-pink-500">
-                  예측된 커플 ({seasonPairs.length}쌍)
+        )}
+        {overview?.season_start_open ? (
+          <div className="rounded-[2rem] border border-pink-200 bg-pink-50/60 px-6 py-6">
+            <div className="mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-base font-black text-slate-900">
+                  최종 커플 예측 (Love-Line)
                 </p>
-                {seasonPairs.length === 0 && (
-                  <p className="text-sm text-slate-400">
-                    아직 매칭된 커플이 없습니다.
-                  </p>
-                )}
+                <p className="text-xs text-slate-500">
+                  커플은 한번 제출하면 수정할 수 없어요.
+                </p>
+              </div>
+              {!overview?.season_couples_locked && (
+                <button
+                  type="button"
+                  onClick={() => setSeasonPairs([])}
+                  className="text-xs font-semibold text-slate-400 hover:text-pink-500"
+                >
+                  초기화
+                </button>
+              )}
+            </div>
+
+            <div ref={pairBoardRef} className="relative">
+              <svg
+                className="pointer-events-none absolute inset-0 h-full w-full"
+                style={{ zIndex: 5 }}
+                aria-hidden
+              >
+                {seasonLines.map((l) => (
+                  <g key={l.key}>
+                    <line
+                      x1={l.x1} y1={l.y1}
+                      x2={l.x2} y2={l.y2}
+                      stroke="#fb7185"
+                      strokeWidth={6}
+                      strokeLinecap="round"
+                      opacity={0.85}
+                    />
+                    <circle
+                      cx={l.mx} cy={l.my}
+                      r={14}
+                      fill="#fb7185"
+                      opacity={0.95}
+                    />
+                    <text
+                      x={l.mx}
+                      y={l.my + 5}
+                      textAnchor="middle"
+                      fontSize="16"
+                      fill="white"
+                      fontWeight="700"
+                    >
+                      ♥
+                    </text>
+                  </g>
+                ))}
+              </svg>
+
+              <div className="grid grid-cols-2 gap-2">
+                <div className="flex flex-col items-center space-y-2">
+                  <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    {maleParticipants.map((participant) => {
+                      const disabled =
+                        overview?.season_couples_locked ||
+                        seasonPairs.some((pair) => pair.male_id === participant.id);
+
+                      return renderParticipantCard(
+                        participant,
+                        seasonSelection.maleId === participant.id,
+                        disabled,
+                        () =>
+                          setSeasonSelection((prev) => ({
+                            ...prev,
+                            maleId: participant.id,
+                          })),
+                        (el) => {
+                          cardRefs.current[participant.id] = el;
+                        }
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center space-y-2">
+                  <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
+                  <div className="flex flex-col items-center space-y-1">
+                    {femaleParticipants.map((participant) => {
+                      const disabled =
+                        overview?.season_couples_locked ||
+                        seasonPairs.some((pair) => pair.female_id === participant.id);
+
+                      return renderParticipantCard(
+                        participant,
+                        seasonSelection.femaleId === participant.id,
+                        disabled,
+                        () =>
+                          setSeasonSelection((prev) => ({
+                            ...prev,
+                            femaleId: participant.id,
+                          })),
+                        (el) => {
+                          cardRefs.current[participant.id] = el;
+                        }
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 space-y-3">
+              <p className="text-xs font-semibold text-pink-500">
+                예측된 커플 ({seasonPairs.length}쌍)
+              </p>
+              {seasonPairs.length === 0 && (
+                <p className="text-sm text-slate-400">
+                  아직 매칭된 커플이 없습니다.
+                </p>
+              )}
+              {seasonPairs.map((pair) => {
+                const female = participants.find((p) => p.id === pair.female_id);
+                const male = participants.find((p) => p.id === pair.male_id);
+                if (!female || !male) return null;
+                return (
+                  <div
+                    key={`${pair.female_id}-${pair.male_id}`}
+                    className="flex items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 py-3"
+                  >
+                    <div className="flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-800">
+                      {female.name}
+                      <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
+                      {male.name}
+                    </div>
+                    {!overview?.season_couples_locked && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setSeasonPairs((prev) =>
+                            prev.filter(
+                              (item) =>
+                                !(
+                                  item.female_id === pair.female_id &&
+                                  item.male_id === pair.male_id
+                                )
+                            )
+                          )
+                        }
+                        className="text-xs text-slate-400 hover:text-pink-500"
+                      >
+                        제거
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSeasonSubmit}
+              disabled={
+                seasonSubmitting ||
+                overview?.season_couples_locked ||
+                seasonPairs.length === 0
+              }
+              className="mt-8 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {overview?.season_couples_locked
+                ? "제출 완료"
+                : seasonSubmitting
+                ? "제출 중..."
+                : "예측 제출하기"}
+            </button>
+          </div>
+        ) : (
+          <div className="rounded-[2rem] border border-slate-200 bg-slate-50 px-6 py-6">
+            <p className="text-xs font-semibold text-slate-500">내 예측</p>
+            {seasonPairs.length === 0 ? (
+              <p className="mt-3 text-sm text-slate-400">
+                아직 제출한 시즌 예측이 없습니다.
+              </p>
+            ) : (
+              <div className="mt-4 space-y-3">
                 {seasonPairs.map((pair) => {
                   const female = participants.find((p) => p.id === pair.female_id);
                   const male = participants.find((p) => p.id === pair.male_id);
@@ -661,55 +723,17 @@ export default function PredictTab() {
                   return (
                     <div
                       key={`${pair.female_id}-${pair.male_id}`}
-                      className="flex items-center justify-between rounded-2xl border border-pink-200 bg-white px-4 py-3"
+                      className="flex items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700"
                     >
-                      <div className="flex flex-1 items-center justify-center gap-3 text-sm font-semibold text-slate-800">
-                        {female.name}
-                        <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
-                        {male.name}
-                      </div>
-                      {!overview?.season_couples_locked && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setSeasonPairs((prev) =>
-                              prev.filter(
-                                (item) =>
-                                  !(
-                                    item.female_id === pair.female_id &&
-                                    item.male_id === pair.male_id
-                                  )
-                              )
-                            )
-                          }
-                          className="text-xs text-slate-400 hover:text-pink-500"
-                        >
-                          제거
-                        </button>
-                      )}
+                      {female.name}
+                      <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
+                      {male.name}
                     </div>
                   );
                 })}
               </div>
-
-              <button
-                type="button"
-                onClick={handleSeasonSubmit}
-                disabled={
-                  seasonSubmitting ||
-                  overview?.season_couples_locked ||
-                  seasonPairs.length === 0
-                }
-                className="mt-8 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:bg-slate-300"
-              >
-                {overview?.season_couples_locked
-                  ? "제출 완료"
-                  : seasonSubmitting
-                  ? "제출 중..."
-                  : "예측 제출하기"}
-              </button>
-            </div>
-          </>
+            )}
+          </div>
         )}
       </div>
 
