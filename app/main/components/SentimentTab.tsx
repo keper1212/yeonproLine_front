@@ -40,6 +40,9 @@ type SentimentEvent = {
 };
 
 type SentimentOverview = {
+  female_id?: number | null;
+  male_id?: number | null;
+  target_id?: number | null;
   support_rate: number;
   delta_5m: number;
   history: SentimentPoint[];
@@ -64,6 +67,20 @@ const accentPalette = {
   single: { line: "#1d9bf0", soft: "bg-sky-50" },
 };
 
+const participantImageMap: Record<string, string> = {
+  "정원규": "/participants/wonkyu.png",
+  "조유식": "/participants/yoosik.png",
+  "신승용": "/participants/seungyong.png",
+  "성백현": "/participants/baekhyeon.png",
+  "홍지연": "/participants/jiyeon.png",
+  "박지현": "/participants/jihyeon.png",
+  "박현지": "/participants/hyeonji.png",
+  "곽민경": "/participants/minkyeong.png",
+  "김우진": "/participants/woojin.png",
+  "이재형": "/participants/jaehyeong.png",
+  "최윤녕": "/participants/yoonnyeong.png",
+};
+
 function formatMinutesLabel(base: Date, current: Date) {
   const diff = Math.max(
     0,
@@ -73,9 +90,9 @@ function formatMinutesLabel(base: Date, current: Date) {
 }
 
 function resolveImageUrl(participant: Participant | null) {
-  if (!participant) return "/participants/곽민경.png";
+  if (!participant) return "/participants/minkyeong.png";
   if (participant.image_url) return participant.image_url;
-  return `/participants/${participant.name}.png`;
+  return participantImageMap[participant.name] ?? "/participants/minkyeong.png";
 }
 
 export default function SentimentTab() {
@@ -126,6 +143,32 @@ export default function SentimentTab() {
 
     fetchParticipants();
   }, []);
+
+  useEffect(() => {
+    if (!overview || participants.length === 0) return;
+
+    if (overview.female_id && overview.male_id) {
+      const nextFemale = String(overview.female_id);
+      const nextMale = String(overview.male_id);
+      if (femaleId !== nextFemale) setFemaleId(nextFemale);
+      if (maleId !== nextMale) setMaleId(nextMale);
+      if (analysisType !== "couple") setAnalysisType("couple");
+      return;
+    }
+
+    if (overview.target_id) {
+      const target = participants.find((p) => p.id === overview.target_id);
+      if (!target) return;
+      if (target.gender === "female") {
+        if (femaleId !== String(target.id)) setFemaleId(String(target.id));
+        if (maleId !== "") setMaleId("");
+      } else {
+        if (maleId !== String(target.id)) setMaleId(String(target.id));
+        if (femaleId !== "") setFemaleId("");
+      }
+      if (analysisType !== "single") setAnalysisType("single");
+    }
+  }, [analysisType, femaleId, maleId, overview, participants]);
 
   useEffect(() => {
     const shouldFetchCouple = analysisType === "couple" && hasCouple;
