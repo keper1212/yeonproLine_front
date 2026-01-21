@@ -120,6 +120,8 @@ export default function ProfileTab() {
   const [showBadgePicker, setShowBadgePicker] = useState(false);
   const [badgeUpdateLoading, setBadgeUpdateLoading] = useState(false);
   const [badgeUpdateError, setBadgeUpdateError] = useState<string | null>(null);
+  const [newBadges, setNewBadges] = useState<BadgeItem[]>([]);
+  const [showNewBadgeDialog, setShowNewBadgeDialog] = useState(false);
 
   useEffect(() => {
     const token = session?.appAccessToken;
@@ -176,6 +178,36 @@ export default function ProfileTab() {
 
     fetchAll();
   }, [session?.appAccessToken, status]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!badges.length) return;
+    try {
+      const lastSeenRaw = localStorage.getItem("lastBadgeSeenAt");
+      const lastSeen = lastSeenRaw ? new Date(lastSeenRaw) : null;
+      const earnedBadges = badges
+        .filter((badge) => badge.is_owned && badge.earned_at)
+        .map((badge) => ({
+          badge,
+          earnedAt: new Date(badge.earned_at as string),
+        }))
+        .filter((item) => !Number.isNaN(item.earnedAt.getTime()))
+        .sort((a, b) => a.earnedAt.getTime() - b.earnedAt.getTime());
+
+      if (!earnedBadges.length) return;
+
+      const fresh = lastSeen
+        ? earnedBadges.filter((item) => item.earnedAt > lastSeen)
+        : earnedBadges;
+
+      if (fresh.length) {
+        setNewBadges(fresh.map((item) => item.badge));
+        setShowNewBadgeDialog(true);
+      }
+    } catch (err) {
+      console.warn("배지 알림 처리 실패", err);
+    }
+  }, [badges, loading]);
 
   const userEarnedBadges = useMemo(
     () => badges.filter((badge) => badge.is_owned),
@@ -559,6 +591,59 @@ export default function ProfileTab() {
               ))}
             </div>
           </div>
+
+          {showNewBadgeDialog && newBadges.length > 0 && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl text-center">
+                <h4 className="text-lg font-bold text-slate-800">
+                  새로운 배지를 획득했어요!
+                </h4>
+                <p className="mt-2 text-xs text-slate-400">
+                  내 정보 탭에서 획득한 배지를 확인하세요.
+                </p>
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {newBadges.map((badge) => (
+                    <div
+                      key={`new-${badge.id}`}
+                      className="flex flex-col items-center justify-center rounded-2xl border border-pink-100 bg-pink-50 px-2 py-3"
+                    >
+                      {badge.icon_url ? (
+                        <img
+                          src={badge.icon_url}
+                          alt={badge.name}
+                          className="mb-1 h-9 w-9 object-contain"
+                        />
+                      ) : (
+                        <span className="text-2xl mb-1">
+                          {badgeIconMap[badge.name] ?? "👤"}
+                        </span>
+                      )}
+                      <span className="text-[10px] font-semibold text-slate-600">
+                        {badge.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const latestEarned = newBadges
+                      .map((badge) =>
+                        badge.earned_at ? new Date(badge.earned_at) : null
+                      )
+                      .filter((date): date is Date => !!date)
+                      .sort((a, b) => b.getTime() - a.getTime())[0];
+                    const nextSeen = latestEarned ?? new Date();
+                    localStorage.setItem("lastBadgeSeenAt", nextSeen.toISOString());
+                    setShowNewBadgeDialog(false);
+                  }}
+                  className="mt-5 w-full rounded-full bg-pink-500 py-2 text-sm font-bold text-white"
+                >
+                  확인
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-left">
             <div className="flex items-center gap-2 mb-6">
