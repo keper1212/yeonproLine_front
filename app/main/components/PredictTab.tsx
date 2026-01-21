@@ -257,6 +257,9 @@ export default function PredictTab() {
       setOverview((prev) =>
         prev ? { ...prev, season_couples_locked: true } : prev
       );
+      if (isAdmin) {
+        window.alert("정답이 성공적으로 저장되었습니다.");
+      }
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
@@ -296,6 +299,9 @@ export default function PredictTab() {
             }
           : prev
       );
+      if (isAdmin) {
+        window.alert("정답이 성공적으로 저장되었습니다.");
+      }
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
