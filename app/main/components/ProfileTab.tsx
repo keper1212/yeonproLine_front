@@ -47,6 +47,9 @@ type UserSummary = {
   primary_badge_id?: number | null;
   primary_badge_name?: string | null;
   primary_badge_icon_url?: string | null;
+  primary_frame_id?: number | null;
+  primary_frame_name?: string | null;
+  primary_frame_icon_url?: string | null;
 };
 
 type BadgeItem = {
@@ -60,6 +63,20 @@ type BadgeItem = {
 
 type BadgeCollection = {
   badges: BadgeItem[];
+};
+
+type FrameItem = {
+  id: number;
+  name: string;
+  description?: string | null;
+  icon_url?: string | null;
+  price: number;
+  is_owned: boolean;
+  earned_at?: string | null;
+};
+
+type FrameCollection = {
+  frames: FrameItem[];
 };
 
 type Participant = {
@@ -109,6 +126,7 @@ export default function ProfileTab() {
   const { data: session, status } = useSession();
   const [summary, setSummary] = useState<UserSummary | null>(null);
   const [badges, setBadges] = useState<BadgeItem[]>([]);
+  const [frames, setFrames] = useState<FrameItem[]>([]);
   const [accuracy, setAccuracy] = useState<AccuracyPoint[]>([]);
   const [history, setHistory] = useState<EpisodePredictions[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -120,10 +138,13 @@ export default function ProfileTab() {
   const [showBadgePicker, setShowBadgePicker] = useState(false);
   const [badgeUpdateLoading, setBadgeUpdateLoading] = useState(false);
   const [badgeUpdateError, setBadgeUpdateError] = useState<string | null>(null);
+  const [frameUpdateLoading, setFrameUpdateLoading] = useState(false);
+  const [frameUpdateError, setFrameUpdateError] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<BadgeItem[]>([]);
   const [showNewBadgeDialog, setShowNewBadgeDialog] = useState(false);
   const [showPointShop, setShowPointShop] = useState(false);
   const [pointShopTab, setPointShopTab] = useState<"profile" | "badge">("profile");
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
 
   useEffect(() => {
     const token = session?.appAccessToken;
@@ -143,10 +164,11 @@ export default function ProfileTab() {
           Authorization: `Bearer ${token}`,
         };
 
-        const [summaryRes, badgesRes, accuracyRes, historyRes, overviewRes] =
+        const [summaryRes, badgesRes, framesRes, accuracyRes, historyRes, overviewRes] =
           await Promise.all([
             fetch(`${backendUrl}/users/me`, { headers }),
             fetch(`${backendUrl}/users/me/badges`, { headers }),
+            fetch(`${backendUrl}/users/me/frames`, { headers }),
             fetch(`${backendUrl}/users/me/stats/accuracy`, { headers }),
             fetch(`${backendUrl}/users/me/predictions`, { headers }),
             fetch(`${backendUrl}/predictions/overview`, { headers }),
@@ -159,6 +181,9 @@ export default function ProfileTab() {
 
         const summaryData = (await summaryRes.json()) as UserSummary;
         const badgesData = (await badgesRes.json()) as BadgeCollection;
+        const framesData = framesRes.ok
+          ? ((await framesRes.json()) as FrameCollection)
+          : { frames: [] };
         const accuracyData = (await accuracyRes.json()) as AccuracyTrend;
         const historyData = (await historyRes.json()) as PredictionHistory;
         const overviewData = overviewRes.ok
@@ -171,6 +196,7 @@ export default function ProfileTab() {
         setAccuracy(accuracyData.points ?? []);
         setHistory(historyData.episodes ?? []);
         setParticipants(overviewData.participants ?? []);
+        setFrames(framesData.frames ?? []);
       } catch (err) {
         setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
       } finally {
@@ -180,6 +206,93 @@ export default function ProfileTab() {
 
     fetchAll();
   }, [session?.appAccessToken, status]);
+
+  const refreshBadges = async (token: string) => {
+    const res = await fetch(`${backendUrl}/users/me/badges`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const badgesData = (await res.json()) as BadgeCollection;
+    setBadges(badgesData.badges ?? []);
+  };
+
+  const refreshFrames = async (token: string) => {
+    const res = await fetch(`${backendUrl}/users/me/frames`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) return;
+    const framesData = (await res.json()) as FrameCollection;
+    setFrames(framesData.frames ?? []);
+  };
+
+  const handleShopPurchase = async (
+    itemType: "frame" | "badge",
+    itemId: string,
+    price: number
+  ) => {
+    const token = session?.appAccessToken;
+    if (!token || !summary) return;
+    if (summary.points < price) {
+      setError("보유 포인트가 부족합니다.");
+      return;
+    }
+    try {
+      setPurchaseLoading(true);
+      const res = await fetch(`${backendUrl}/users/me/shop/purchase`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ item_type: itemType, item_id: itemId }),
+      });
+      if (!res.ok) {
+        const message = itemType === "badge" ? "배지 구매에 실패했습니다." : "프레임 구매에 실패했습니다.";
+        throw new Error(message);
+      }
+      const nextSummary = (await res.json()) as UserSummary;
+      setSummary(nextSummary);
+      if (itemType === "badge") {
+        await refreshBadges(token);
+      } else {
+        await refreshFrames(token);
+      }
+      window.alert("구매가 완료되었습니다.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
+    } finally {
+      setPurchaseLoading(false);
+    }
+  };
+
+  const handlePrimaryFrameUpdate = async (frameId: number) => {
+    const token = session?.appAccessToken;
+    if (!token || !summary) return;
+    try {
+      setFrameUpdateLoading(true);
+      setFrameUpdateError(null);
+      const res = await fetch(`${backendUrl}/users/me/primary-frame`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ frame_id: frameId }),
+      });
+      if (!res.ok) {
+        throw new Error("프레임 변경에 실패했습니다.");
+      }
+      const nextSummary = (await res.json()) as UserSummary;
+      setSummary(nextSummary);
+      setShowBadgePicker(false);
+    } catch (err) {
+      setFrameUpdateError(
+        err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다."
+      );
+    } finally {
+      setFrameUpdateLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (loading) return;
@@ -410,10 +523,10 @@ export default function ProfileTab() {
     },
   ];
   const shopBadgeItems = [
-    { id: "badge-ring", name: "링 배지", price: 1000, image: "/badges/ring.png" },
+    { id: "badge-ring", name: "약속의 다이아몬드", price: 1000, image: "/badges/ring.png" },
     {
       id: "badge-heart-bit",
-      name: "하트 비트",
+      name: "네온 하트",
       price: 1000,
       image: "/badges/heart_bit.png",
     },
@@ -446,16 +559,25 @@ export default function ProfileTab() {
             <div className="flex items-start justify-between mb-6 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
-                  <div className="w-14 h-14 flex-shrink-0 rounded-full border-4 border-white overflow-hidden shadow-md bg-white flex items-center justify-center">
-                    {summary.primary_badge_icon_url ? (
+                  <div className="relative w-14 h-14 flex-shrink-0">
+                    {summary.primary_frame_icon_url && (
                       <img
-                        src={summary.primary_badge_icon_url}
-                        alt={summary.primary_badge_name ?? "대표 배지"}
-                        className="w-full h-full object-cover"
+                        src={summary.primary_frame_icon_url}
+                        alt={summary.primary_frame_name ?? "대표 프레임"}
+                        className="absolute inset-0 h-full w-full object-contain"
                       />
-                    ) : (
-                      <span className="text-2xl">{primaryBadgeEmoji}</span>
                     )}
+                    <div className="absolute inset-2 rounded-full border-4 border-white overflow-hidden shadow-md bg-white flex items-center justify-center">
+                      {summary.primary_badge_icon_url ? (
+                        <img
+                          src={summary.primary_badge_icon_url}
+                          alt={summary.primary_badge_name ?? "대표 배지"}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-2xl">{primaryBadgeEmoji}</span>
+                      )}
+                    </div>
                   </div>
                   {editingNickname ? (
                     <input
@@ -571,6 +693,52 @@ export default function ProfileTab() {
                     {badgeUpdateError}
                   </div>
                 )}
+                {frameUpdateError && (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-500">
+                    {frameUpdateError}
+                  </div>
+                )}
+                {frames.filter((frame) => frame.is_owned).length > 0 && (
+                  <>
+                    <div className="mt-4 text-sm font-bold text-slate-700">
+                      프레임 선택
+                    </div>
+                    <div className="mt-3 grid grid-cols-3 gap-3">
+                      {frames
+                        .filter((frame) => frame.is_owned)
+                        .map((frame) => {
+                          const isSelected =
+                            summary.primary_frame_id === frame.id;
+                          return (
+                            <button
+                              key={`frame-${frame.id}`}
+                              type="button"
+                              onClick={() => handlePrimaryFrameUpdate(frame.id)}
+                              disabled={frameUpdateLoading}
+                              className={`flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-3 text-center transition-all ${
+                                isSelected
+                                  ? "border-pink-500 bg-pink-50"
+                                  : "border-slate-100 hover:border-pink-200"
+                              }`}
+                            >
+                              {frame.icon_url ? (
+                                <img
+                                  src={frame.icon_url}
+                                  alt={frame.name}
+                                  className="mb-1 h-9 w-9 object-contain"
+                                />
+                              ) : (
+                                <span className="text-2xl mb-1">🖼️</span>
+                              )}
+                              <span className="text-[10px] font-semibold text-slate-600">
+                                {frame.name}
+                              </span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                  </>
+                )}
                 <div className="mt-4 grid grid-cols-3 gap-3">
                   {userEarnedBadges.map((badge) => {
                     const isSelected = summary.primary_badge_id === badge.id;
@@ -618,7 +786,7 @@ export default function ProfileTab() {
           )}
 
           {showPointShop && summary && (
-            <div className="fixed inset-0 z-50 bg-white px-6 pb-10 pt-8 text-slate-800">
+            <div className="fixed inset-0 z-50 bg-white px-6 pb-10 pt-8 text-slate-800 overflow-y-auto">
               <button
                 type="button"
                 onClick={() => setShowPointShop(false)}
@@ -683,9 +851,17 @@ export default function ProfileTab() {
                     </p>
                     <button
                       type="button"
+                      onClick={() =>
+                        handleShopPurchase(
+                          pointShopTab === "profile" ? "frame" : "badge",
+                          item.id,
+                          item.price
+                        )
+                      }
+                      disabled={purchaseLoading || summary.points < item.price}
                       className="mt-5 w-full rounded-full bg-pink-500 py-3 text-sm font-bold text-white"
                     >
-                      구매하기
+                      {summary.points < item.price ? "포인트 부족" : "구매하기"}
                     </button>
                   </div>
                 ))}

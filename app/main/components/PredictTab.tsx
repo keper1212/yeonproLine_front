@@ -1035,7 +1035,7 @@ export default function PredictTab() {
           <div className="mt-6 grid gap-4 sm:grid-cols-2">
             {likeUpItem && (
               <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-                <p className="text-xs font-semibold text-green-600">호감도 상승</p>
+                <p className="text-xs font-semibold text-green-600">민싱 떡상</p>
                 <select
                   value={episodeAnswers[likeUpItem.id] ?? ""}
                   onChange={(event) =>
