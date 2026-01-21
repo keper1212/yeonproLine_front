@@ -43,6 +43,11 @@ interface OverviewResponse {
   episode_predictions_locked?: boolean;
   participants: Participant[];
   episode_items: PredictionItem[];
+  episode_answers?: {
+    prediction_item_id: number;
+    selected_value: string;
+    target_participant_id?: number | null;
+  }[];
   season_final_zero_vote?: number | null;
   season_popular_one?: number | null;
 }
@@ -145,6 +150,31 @@ export default function PredictTab() {
         }
         if (data.season_popular_one) {
           setPopularOneVote(data.season_popular_one);
+        }
+        if (data.episode_answers && data.episode_answers.length > 0) {
+          const nextMessagePairs: SeasonPair[] = [];
+          const nextEpisodeAnswers: Record<number, string> = {};
+          const messageItemData = data.episode_items.find(
+            (item) => item.category === "message_target"
+          );
+          data.episode_answers.forEach((answer) => {
+            if (messageItemData && answer.prediction_item_id === messageItemData.id) {
+              const [femaleId, maleId] = answer.selected_value
+                .split(":")
+                .map((value) => Number(value));
+              if (!Number.isNaN(femaleId) && !Number.isNaN(maleId)) {
+                nextMessagePairs.push({ female_id: femaleId, male_id: maleId });
+              }
+            } else {
+              nextEpisodeAnswers[answer.prediction_item_id] = answer.selected_value;
+            }
+          });
+          if (nextMessagePairs.length > 0) {
+            setMessagePairs(nextMessagePairs);
+          }
+          if (Object.keys(nextEpisodeAnswers).length > 0) {
+            setEpisodeAnswers(nextEpisodeAnswers);
+          }
         }
       } catch (fetchError) {
         setError((fetchError as Error).message);
@@ -263,6 +293,11 @@ export default function PredictTab() {
 
   const handleEpisodeSubmit = async () => {
     if (!token || !overview?.next_episode) return;
+    if (overview?.episode_predictions_locked) return;
+    const confirmed = window.confirm(
+      "한번 예측하면 더이상 수정할 수 없습니다. 예측을 제출할까요?"
+    );
+    if (!confirmed) return;
     const answers: Array<{
       prediction_item_id: number;
       selected_value: string;
@@ -301,6 +336,7 @@ export default function PredictTab() {
       setOverview((prev) =>
         prev ? { ...prev, episode_predictions_locked: true } : prev
       );
+      window.alert("예측이 성공적으로 저장되었습니다.");
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
