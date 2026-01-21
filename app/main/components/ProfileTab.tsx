@@ -179,8 +179,8 @@ export default function ProfileTab() {
     [badges]
   );
   const primaryBadgeEmoji = useMemo(() => {
-    if (!summary?.primary_badge_name) return "🏅";
-    return badgeIconMap[summary.primary_badge_name] ?? "🏅";
+    if (!summary?.primary_badge_name) return "👤";
+    return badgeIconMap[summary.primary_badge_name] ?? "👤";
   }, [summary?.primary_badge_name]);
 
   const handleNicknameSave = async () => {
@@ -392,7 +392,7 @@ export default function ProfileTab() {
                       className="inline-block h-6 w-6 object-contain"
                     />
                   ) : (
-                    badgeIconMap[badge.name] ?? "🏅"
+                    badgeIconMap[badge.name] ?? "👤"
                   )}
                 </span>
               ))}
@@ -441,7 +441,7 @@ export default function ProfileTab() {
                       className="mb-1 h-8 w-8 object-contain"
                     />
                   ) : (
-                    <span className="text-2xl mb-1">{badgeIconMap[badge.name] ?? "🏅"}</span>
+                    <span className="text-2xl mb-1">{badgeIconMap[badge.name] ?? "👤"}</span>
                   )}
                   <p className="text-[10px] font-bold text-center leading-tight px-1">
                     {badge.name}
