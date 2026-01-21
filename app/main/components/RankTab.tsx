@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Trophy, Medal, Crown, TrendingUp, MoreHorizontal, ShoppingBag } from "lucide-react";
+import { Trophy, Medal, Crown, TrendingUp, MoreHorizontal } from "lucide-react";
 
 const RANKING_DATA = [
   { rank: 1, name: "예측마스터", points: 2850, accuracy: "94%", badges: ["🔮", "🎬"], isMe: false },
@@ -29,9 +29,6 @@ export default function RankTab() {
         <div className="bg-[#FFF5F8] rounded-[2.5rem] p-8 border-2 border-[#FFD1E0] shadow-sm text-left relative">
           <div className="flex justify-between items-start mb-4">
             <span className="text-slate-500 font-bold text-sm">내 현재 순위</span>
-            <button className="flex items-center gap-1.5 bg-white border border-slate-200 px-3 py-1.5 rounded-full text-[12px] font-bold text-slate-600 shadow-sm">
-              <ShoppingBag size={14} /> 포인트 샵
-            </button>
           </div>
           
           <div className="flex justify-between items-center mt-2">

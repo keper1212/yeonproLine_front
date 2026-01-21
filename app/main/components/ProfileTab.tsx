@@ -122,6 +122,8 @@ export default function ProfileTab() {
   const [badgeUpdateError, setBadgeUpdateError] = useState<string | null>(null);
   const [newBadges, setNewBadges] = useState<BadgeItem[]>([]);
   const [showNewBadgeDialog, setShowNewBadgeDialog] = useState(false);
+  const [showPointShop, setShowPointShop] = useState(false);
+  const [pointShopTab, setPointShopTab] = useState<"profile" | "badge">("profile");
 
   useEffect(() => {
     const token = session?.appAccessToken;
@@ -369,6 +371,17 @@ export default function ProfileTab() {
 
   const fontMain = "font-sans antialiased tracking-tight text-slate-800";
 
+  const shopProfileItems = [
+    { id: "profile-gold", name: "골드 프레임", price: 500 },
+    { id: "profile-diamond", name: "다이아 프레임", price: 1000 },
+  ];
+  const shopBadgeItems = [
+    { id: "badge-holy", name: "연프 촉", price: 800, image: "/badges/holy.png" },
+    { id: "badge-editor", name: "편집 읽는 사람", price: 800, image: "/badges/editor.png" },
+    { id: "badge-analysis", name: "분석왕", price: 1000, image: "/badges/analysis.png" },
+    { id: "badge-fan", name: "열정팬", price: 1200, image: "/badges/fan.png" },
+  ];
+
   return (
     <div className={`w-full space-y-6 pb-20 px-1 ${fontMain}`}>
       <div className="pt-4 text-left">
@@ -393,20 +406,20 @@ export default function ProfileTab() {
       {!loading && !error && summary && (
         <>
           <div className="bg-[#FFF5F8] rounded-[2.5rem] p-6 border-2 border-[#FFD1E0] shadow-sm text-left">
-            <div className="flex items-center gap-5 mb-6">
-              <div className="w-20 h-20 flex-shrink-0 rounded-full border-4 border-white overflow-hidden shadow-md bg-white flex items-center justify-center">
-                {summary.primary_badge_icon_url ? (
-                  <img
-                    src={summary.primary_badge_icon_url}
-                    alt={summary.primary_badge_name ?? "대표 배지"}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <span className="text-3xl">{primaryBadgeEmoji}</span>
-                )}
-              </div>
+            <div className="flex items-start justify-between mb-6 gap-4">
               <div className="space-y-1">
                 <div className="flex items-center gap-3">
+                  <div className="w-14 h-14 flex-shrink-0 rounded-full border-4 border-white overflow-hidden shadow-md bg-white flex items-center justify-center">
+                    {summary.primary_badge_icon_url ? (
+                      <img
+                        src={summary.primary_badge_icon_url}
+                        alt={summary.primary_badge_name ?? "대표 배지"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-2xl">{primaryBadgeEmoji}</span>
+                    )}
+                  </div>
                   {editingNickname ? (
                     <input
                       value={nicknameDraft}
@@ -416,8 +429,10 @@ export default function ProfileTab() {
                   ) : (
                     <h2 className="text-xl font-bold">{summary.nickname}</h2>
                   )}
+                </div>
+                <div className="flex items-center gap-2">
                   {editingNickname ? (
-                    <div className="flex items-center gap-2">
+                    <>
                       <button
                         type="button"
                         onClick={handleNicknameSave}
@@ -435,7 +450,7 @@ export default function ProfileTab() {
                       >
                         취소
                       </button>
-                    </div>
+                    </>
                   ) : (
                     <button
                       type="button"
@@ -472,6 +487,13 @@ export default function ProfileTab() {
               ))}
                 </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowPointShop(true)}
+                className="rounded-full border border-pink-300 px-4 py-2 text-xs font-bold text-pink-500 bg-white"
+              >
+                포인트 샵
+              </button>
             </div>
 
             <div className="flex flex-row justify-between gap-3 w-full">
@@ -554,6 +576,82 @@ export default function ProfileTab() {
                     닫기
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {showPointShop && summary && (
+            <div className="fixed inset-0 z-50 bg-white px-6 pb-10 pt-8 text-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowPointShop(false)}
+                className="text-sm font-semibold text-slate-500"
+              >
+                ← 뒤로
+              </button>
+
+              <h2 className="mt-6 text-3xl font-black">포인트 샵</h2>
+              <div className="mt-2 text-2xl font-bold text-amber-500">
+                ⚡ {summary.points.toLocaleString()} pt
+              </div>
+
+              <div className="mt-6 flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                <button
+                  type="button"
+                  onClick={() => setPointShopTab("profile")}
+                  className={`flex-1 rounded-full py-3 text-sm font-bold transition ${
+                    pointShopTab === "profile"
+                      ? "bg-pink-500 text-white"
+                      : "text-slate-500"
+                  }`}
+                >
+                  프로필
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPointShopTab("badge")}
+                  className={`flex-1 rounded-full py-3 text-sm font-bold transition ${
+                    pointShopTab === "badge"
+                      ? "bg-pink-500 text-white"
+                      : "text-slate-500"
+                  }`}
+                >
+                  배지
+                </button>
+              </div>
+
+              <div className="mt-8 grid gap-6 sm:grid-cols-2">
+                {(pointShopTab === "profile"
+                  ? shopProfileItems
+                  : shopBadgeItems
+                ).map((item) => (
+                  <div
+                    key={item.id}
+                    className="rounded-[2rem] border border-slate-200 p-6 text-center shadow-sm"
+                  >
+                    <div className="mx-auto mb-4 h-24 w-24 rounded-2xl bg-slate-100 flex items-center justify-center">
+                      {"image" in item && item.image ? (
+                        <img
+                          src={item.image}
+                          alt={item.name}
+                          className="h-16 w-16 object-contain"
+                        />
+                      ) : (
+                        <div className="h-16 w-16 rounded-2xl border-4 border-pink-200 bg-white" />
+                      )}
+                    </div>
+                    <p className="text-lg font-bold">{item.name}</p>
+                    <p className="mt-1 text-sm font-bold text-amber-500">
+                      ⚡ {item.price}
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-5 w-full rounded-full bg-pink-500 py-3 text-sm font-bold text-white"
+                    >
+                      구매하기
+                    </button>
+                  </div>
+                ))}
               </div>
             </div>
           )}

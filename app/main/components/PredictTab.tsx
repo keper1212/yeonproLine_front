@@ -55,6 +55,10 @@ interface OverviewResponse {
   season_popular_one?: number | null;
 }
 
+interface UserSummary {
+  points: number;
+}
+
 interface PairSelection {
   femaleId: number | null;
   maleId: number | null;
@@ -75,6 +79,7 @@ export default function PredictTab() {
   const token = (session as { appAccessToken?: string } | null)?.appAccessToken;
 
   const [overview, setOverview] = useState<OverviewResponse | null>(null);
+  const [userPoints, setUserPoints] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState("00:00:00");
@@ -145,13 +150,15 @@ export default function PredictTab() {
     const fetchOverview = async () => {
       try {
         setLoading(true);
-        const res = await fetch(`${backendUrl}/predictions/overview`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) {
+        const headers = { Authorization: `Bearer ${token}` };
+        const [overviewRes, userRes] = await Promise.all([
+          fetch(`${backendUrl}/predictions/overview`, { headers }),
+          fetch(`${backendUrl}/users/me`, { headers }),
+        ]);
+        if (!overviewRes.ok) {
           throw new Error("예측 데이터를 불러오지 못했어요.");
         }
-        const data: OverviewResponse = await res.json();
+        const data: OverviewResponse = await overviewRes.json();
         setOverview(data);
         setSeasonPairs(data.season_couples);
         if (data.season_final_zero_vote) {
@@ -191,6 +198,11 @@ export default function PredictTab() {
           if (Object.keys(nextBettingPoints).length > 0) {
             setSpecialBettingPoints(nextBettingPoints);
           }
+        }
+
+        if (userRes.ok) {
+          const userData: UserSummary = await userRes.json();
+          setUserPoints(Number.isFinite(userData.points) ? userData.points : 0);
         }
       } catch (fetchError) {
         setError((fetchError as Error).message);
@@ -340,7 +352,7 @@ export default function PredictTab() {
       prediction_item_id: Number(key),
       selected_value: value,
       betting_points: itemMap.get(Number(key))?.is_special
-        ? specialBettingPoints[Number(key)] ?? 0
+        ? Math.min(specialBettingPoints[Number(key)] ?? 0, userPoints)
         : undefined,
     }));
     if (messageItem && messagePairs.length > 0) {
@@ -1096,13 +1108,16 @@ export default function PredictTab() {
                   <input
                     type="number"
                     min={0}
+                    max={userPoints}
                     step={1}
                     value={specialBettingPoints[item.id] ?? ""}
                     onChange={(event) => {
                       const nextValue = Number(event.target.value);
                       setSpecialBettingPoints((prev) => ({
                         ...prev,
-                        [item.id]: Number.isNaN(nextValue) ? 0 : Math.max(0, nextValue),
+                        [item.id]: Number.isNaN(nextValue)
+                          ? 0
+                          : Math.min(userPoints, Math.max(0, nextValue)),
                       }));
                     }}
                     disabled={episodeLocked}

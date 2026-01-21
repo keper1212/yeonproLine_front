@@ -129,9 +129,6 @@ export default function RankingTab() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button className="rounded-full border border-pink-300 px-4 py-2 text-sm font-semibold text-pink-500">
-                  포인트 샵
-                </button>
                 <div className="w-16 h-16 rounded-full border-2 border-white bg-white shadow-md overflow-hidden flex items-center justify-center text-2xl">
                   {getBadgeVisual(meEntry)}
                 </div>
