@@ -432,6 +432,7 @@ export default function ProfileTab() {
                       ? "bg-[#FFFDEB] border-[#FDE047] shadow-sm"
                       : "bg-gray-50 border-transparent opacity-30 grayscale"
                   }`}
+                  title={badge.is_owned ? badge.description ?? "" : ""}
                 >
                   {badge.icon_url ? (
                     <img
