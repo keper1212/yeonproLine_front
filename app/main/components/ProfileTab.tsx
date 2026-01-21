@@ -117,6 +117,9 @@ export default function ProfileTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
+  const [showBadgePicker, setShowBadgePicker] = useState(false);
+  const [badgeUpdateLoading, setBadgeUpdateLoading] = useState(false);
+  const [badgeUpdateError, setBadgeUpdateError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = session?.appAccessToken;
@@ -213,6 +216,35 @@ export default function ProfileTab() {
       setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePrimaryBadgeUpdate = async (badgeId: number) => {
+    const token = session?.appAccessToken;
+    if (!token || !summary) return;
+    try {
+      setBadgeUpdateLoading(true);
+      setBadgeUpdateError(null);
+      const res = await fetch(`${backendUrl}/users/me/primary-badge`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ badge_id: badgeId }),
+      });
+      if (!res.ok) {
+        throw new Error("프로필 배지 변경에 실패했습니다.");
+      }
+      const nextSummary = (await res.json()) as UserSummary;
+      setSummary(nextSummary);
+      setShowBadgePicker(false);
+    } catch (err) {
+      setBadgeUpdateError(
+        err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다."
+      );
+    } finally {
+      setBadgeUpdateLoading(false);
     }
   };
 
@@ -381,6 +413,16 @@ export default function ProfileTab() {
                       닉네임 수정
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setBadgeUpdateError(null);
+                      setShowBadgePicker(true);
+                    }}
+                    className="rounded-lg border border-pink-200 px-3 py-1 text-xs font-bold text-pink-500"
+                  >
+                    프로필 수정
+                  </button>
                 </div>
                 <div className="flex gap-1.5 text-lg">
               {userEarnedBadges.map((badge) => (
@@ -416,6 +458,73 @@ export default function ProfileTab() {
               ))}
             </div>
           </div>
+
+          {showBadgePicker && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-lg font-bold text-slate-800">프로필 배지 선택</h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowBadgePicker(false)}
+                    className="text-sm font-semibold text-slate-400 hover:text-slate-600"
+                  >
+                    닫기
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-slate-400">
+                  획득한 배지 중 하나를 프로필 이미지로 설정하세요.
+                </p>
+                {badgeUpdateError && (
+                  <div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-500">
+                    {badgeUpdateError}
+                  </div>
+                )}
+                <div className="mt-4 grid grid-cols-3 gap-3">
+                  {userEarnedBadges.map((badge) => {
+                    const isSelected = summary.primary_badge_id === badge.id;
+                    return (
+                      <button
+                        key={badge.id}
+                        type="button"
+                        onClick={() => handlePrimaryBadgeUpdate(badge.id)}
+                        disabled={badgeUpdateLoading}
+                        className={`flex flex-col items-center justify-center rounded-2xl border-2 px-2 py-3 text-center transition-all ${
+                          isSelected
+                            ? "border-pink-500 bg-pink-50"
+                            : "border-slate-100 hover:border-pink-200"
+                        }`}
+                      >
+                        {badge.icon_url ? (
+                          <img
+                            src={badge.icon_url}
+                            alt={badge.name}
+                            className="mb-1 h-9 w-9 object-contain"
+                          />
+                        ) : (
+                          <span className="text-2xl mb-1">
+                            {badgeIconMap[badge.name] ?? "👤"}
+                          </span>
+                        )}
+                        <span className="text-[10px] font-semibold text-slate-600">
+                          {badge.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => setShowBadgePicker(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-500"
+                  >
+                    닫기
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="bg-white rounded-[2.5rem] p-6 shadow-sm border border-gray-100 text-left">
             <div className="flex items-center gap-2 mb-6">
