@@ -383,9 +383,19 @@ export default function ProfileTab() {
                   )}
                 </div>
                 <div className="flex gap-1.5 text-lg">
-                  {userEarnedBadges.map((badge) => (
-                    <span key={badge.id}>{badgeIconMap[badge.name] ?? "🏅"}</span>
-                  ))}
+              {userEarnedBadges.map((badge) => (
+                <span key={badge.id}>
+                  {badge.icon_url ? (
+                    <img
+                      src={badge.icon_url}
+                      alt={badge.name}
+                      className="inline-block h-6 w-6 object-contain"
+                    />
+                  ) : (
+                    badgeIconMap[badge.name] ?? "🏅"
+                  )}
+                </span>
+              ))}
                 </div>
               </div>
             </div>
@@ -423,7 +433,15 @@ export default function ProfileTab() {
                       : "bg-gray-50 border-transparent opacity-30 grayscale"
                   }`}
                 >
-                  <span className="text-2xl mb-1">{badgeIconMap[badge.name] ?? "🏅"}</span>
+                  {badge.icon_url ? (
+                    <img
+                      src={badge.icon_url}
+                      alt={badge.name}
+                      className="mb-1 h-8 w-8 object-contain"
+                    />
+                  ) : (
+                    <span className="text-2xl mb-1">{badgeIconMap[badge.name] ?? "🏅"}</span>
+                  )}
                   <p className="text-[10px] font-bold text-center leading-tight px-1">
                     {badge.name}
                   </p>
