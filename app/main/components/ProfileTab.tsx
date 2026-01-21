@@ -372,14 +372,51 @@ export default function ProfileTab() {
   const fontMain = "font-sans antialiased tracking-tight text-slate-800";
 
   const shopProfileItems = [
-    { id: "profile-gold", name: "골드 프레임", price: 500 },
-    { id: "profile-diamond", name: "다이아 프레임", price: 1000 },
+    {
+      id: "frame-gold",
+      name: "엔티크 골든 로즈",
+      price: 800,
+      image: "/frame/gold.png",
+    },
+    {
+      id: "frame-heart",
+      name: "핑크 하트 시그널",
+      price: 800,
+      image: "/frame/heart.png",
+    },
+    {
+      id: "frame-water",
+      name: "흩날리는 물보라",
+      price: 800,
+      image: "/frame/water.png",
+    },
+    {
+      id: "frame-tree",
+      name: "숲속의 작은 초대",
+      price: 800,
+      image: "/frame/tree.png",
+    },
+    {
+      id: "frame-flower",
+      name: "벚꽃 아래, 우리",
+      price: 800,
+      image: "/frame/flower.png",
+    },
+    {
+      id: "frame-black",
+      name: "금지된 다크 글리치",
+      price: 800,
+      image: "/frame/black.png",
+    },
   ];
   const shopBadgeItems = [
-    { id: "badge-holy", name: "연프 촉", price: 800, image: "/badges/holy.png" },
-    { id: "badge-editor", name: "편집 읽는 사람", price: 800, image: "/badges/editor.png" },
-    { id: "badge-analysis", name: "분석왕", price: 1000, image: "/badges/analysis.png" },
-    { id: "badge-fan", name: "열정팬", price: 1200, image: "/badges/fan.png" },
+    { id: "badge-ring", name: "링 배지", price: 1000, image: "/badges/ring.png" },
+    {
+      id: "badge-heart-bit",
+      name: "하트 비트",
+      price: 1000,
+      image: "/badges/heart_bit.png",
+    },
   ];
 
   return (
@@ -605,7 +642,7 @@ export default function ProfileTab() {
                       : "text-slate-500"
                   }`}
                 >
-                  프로필
+                  프레임
                 </button>
                 <button
                   type="button"
