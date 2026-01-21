@@ -904,7 +904,6 @@ export default function PredictTab() {
                   <div className="flex flex-col items-center space-y-1">
                     {maleParticipants.map((participant) => {
                       const disabled =
-                        (!overview?.season_start_open && !isAdmin) ||
                         episodeLocked ||
                         messagePairs.some((pair) => pair.male_id === participant.id);
 
@@ -930,7 +929,6 @@ export default function PredictTab() {
                   <div className="flex flex-col items-center space-y-1">
                     {femaleParticipants.map((participant) => {
                       const disabled =
-                        (!overview?.season_start_open && !isAdmin) ||
                         episodeLocked ||
                         messagePairs.some((pair) => pair.female_id === participant.id);
 
