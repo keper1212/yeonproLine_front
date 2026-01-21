@@ -29,6 +29,7 @@ interface PredictionItem {
   category?: string | null;
   question_text: string;
   odds?: number | null;
+  odds_by_value?: Record<string, number> | null;
   is_multiple_choice: boolean;
   scope?: string | null;
   is_special: boolean;
@@ -48,6 +49,7 @@ interface OverviewResponse {
     prediction_item_id: number;
     selected_value: string;
     target_participant_id?: number | null;
+    betting_points?: number | null;
   }[];
   season_final_zero_vote?: number | null;
   season_popular_one?: number | null;
@@ -103,6 +105,9 @@ export default function PredictTab() {
   const [episodeAnswers, setEpisodeAnswers] = useState<Record<number, string>>(
     {}
   );
+  const [specialBettingPoints, setSpecialBettingPoints] = useState<
+    Record<number, number>
+  >({});
   const [episodeSubmitting, setEpisodeSubmitting] = useState(false);
 
   // ✅ 선 그리기 위한 ref/상태
@@ -158,6 +163,7 @@ export default function PredictTab() {
         if (data.episode_answers && data.episode_answers.length > 0) {
           const nextMessagePairs: SeasonPair[] = [];
           const nextEpisodeAnswers: Record<number, string> = {};
+          const nextBettingPoints: Record<number, number> = {};
           const messageItemData = data.episode_items.find(
             (item) => item.category === "message_target"
           );
@@ -171,6 +177,9 @@ export default function PredictTab() {
               }
             } else {
               nextEpisodeAnswers[answer.prediction_item_id] = answer.selected_value;
+              if (answer.betting_points !== null && answer.betting_points !== undefined) {
+                nextBettingPoints[answer.prediction_item_id] = answer.betting_points;
+              }
             }
           });
           if (nextMessagePairs.length > 0) {
@@ -178,6 +187,9 @@ export default function PredictTab() {
           }
           if (Object.keys(nextEpisodeAnswers).length > 0) {
             setEpisodeAnswers(nextEpisodeAnswers);
+          }
+          if (Object.keys(nextBettingPoints).length > 0) {
+            setSpecialBettingPoints(nextBettingPoints);
           }
         }
       } catch (fetchError) {
@@ -318,13 +330,18 @@ export default function PredictTab() {
         : "한번 예측하면 더이상 수정할 수 없습니다. 예측을 제출할까요?"
     );
     if (!confirmed) return;
+    const itemMap = new Map(overview.episode_items.map((item) => [item.id, item]));
     const answers: Array<{
       prediction_item_id: number;
       selected_value: string;
       target_participant_id?: number;
+      betting_points?: number;
     }> = Object.entries(episodeAnswers).map(([key, value]) => ({
       prediction_item_id: Number(key),
       selected_value: value,
+      betting_points: itemMap.get(Number(key))?.is_special
+        ? specialBettingPoints[Number(key)] ?? 0
+        : undefined,
     }));
     if (messageItem && messagePairs.length > 0) {
       messagePairs.forEach((pair) => {
@@ -1067,18 +1084,40 @@ export default function PredictTab() {
                   <p className="text-sm font-semibold text-slate-800">
                     {item.question_text}
                   </p>
+                </div>
 
-                  {item.odds !== null && (
-                    <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-600">
-                      {item.odds}배
-                    </span>
-                  )}
+                <div className="mt-3 flex items-center justify-between rounded-2xl border border-pink-100 bg-pink-50 px-4 py-3">
+                  <div>
+                    <p className="text-xs font-semibold text-pink-600">베팅 포인트</p>
+                    <p className="text-[10px] text-slate-400">
+                      배당은 제출 시점 기준으로 계산됩니다.
+                    </p>
+                  </div>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1}
+                    value={specialBettingPoints[item.id] ?? ""}
+                    onChange={(event) => {
+                      const nextValue = Number(event.target.value);
+                      setSpecialBettingPoints((prev) => ({
+                        ...prev,
+                        [item.id]: Number.isNaN(nextValue) ? 0 : Math.max(0, nextValue),
+                      }));
+                    }}
+                    disabled={episodeLocked}
+                    className="w-28 rounded-xl border border-pink-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 disabled:cursor-not-allowed disabled:bg-slate-200"
+                    placeholder="0"
+                  />
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   {["O (예)", "X (아니오)"].map((label, index) => {
                     const value = index === 0 ? "yes" : "no";
                     const active = episodeAnswers[item.id] === value;
+                    const oddsMap = item.odds_by_value ?? { yes: 2.0, no: 2.0 };
+                    const oddsValue =
+                      value === "yes" ? oddsMap.yes ?? 2.0 : oddsMap.no ?? 2.0;
 
                     return (
                       <button
@@ -1095,8 +1134,12 @@ export default function PredictTab() {
                             ? "border-pink-500 bg-pink-50 text-pink-600"
                             : "border-slate-200 text-slate-500"
                         }`}
+                        disabled={episodeLocked}
                       >
-                        {label}
+                        <span className="block text-sm font-semibold">{label}</span>
+                        <span className="block text-xs font-semibold text-amber-500">
+                          {oddsValue.toFixed(2)}배
+                        </span>
                       </button>
                     );
                   })}
