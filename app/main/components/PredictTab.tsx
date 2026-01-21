@@ -36,6 +36,7 @@ interface PredictionItem {
 
 interface OverviewResponse {
   next_episode?: EpisodeSummary | null;
+  is_admin?: boolean;
   season_start_open: boolean;
   season_final_vote_open: boolean;
   season_couples_locked: boolean;
@@ -89,6 +90,9 @@ export default function PredictTab() {
   const finalVoteLocked = Boolean(
     overview?.season_final_zero_vote && overview?.season_popular_one
   );
+  const isAdmin = Boolean(overview?.is_admin);
+  const seasonCouplesLocked = Boolean(overview?.season_couples_locked) && !isAdmin;
+  const episodeLocked = Boolean(overview?.episode_predictions_locked) && !isAdmin;
 
   const [messageSelection, setMessageSelection] = useState<PairSelection>({
     femaleId: null,
@@ -232,19 +236,23 @@ export default function PredictTab() {
   }, [messageSelection, messagePairs]);
 
   const handleSeasonSubmit = async () => {
-    if (!token || seasonPairs.length === 0 || !overview?.season_start_open) return;
+    if (!token || seasonPairs.length === 0) return;
+    if (!isAdmin && !overview?.season_start_open) return;
     try {
       setSeasonSubmitting(true);
-      const res = await fetch(`${backendUrl}/predictions/season-couples`, {
+      const res = await fetch(
+        `${backendUrl}${isAdmin ? "/predictions/admin/season-couples" : "/predictions/season-couples"}`,
+        {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ pairs: seasonPairs }),
-      });
+        }
+      );
       if (!res.ok) {
-        throw new Error("시즌 예측 제출에 실패했어요.");
+        throw new Error(isAdmin ? "정답 입력에 실패했어요." : "시즌 예측 제출에 실패했어요.");
       }
       setOverview((prev) =>
         prev ? { ...prev, season_couples_locked: true } : prev
@@ -257,11 +265,14 @@ export default function PredictTab() {
   };
 
   const handleFinalVoteSubmit = async () => {
-    if (!token || !overview?.season_final_vote_open) return;
+    if (!token) return;
+    if (!isAdmin && !overview?.season_final_vote_open) return;
     if (!finalZeroVote || !popularOneVote) return;
     try {
       setFinalSubmitting(true);
-      const res = await fetch(`${backendUrl}/predictions/season-final`, {
+      const res = await fetch(
+        `${backendUrl}${isAdmin ? "/predictions/admin/season-final" : "/predictions/season-final"}`,
+        {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -271,9 +282,10 @@ export default function PredictTab() {
           final_zero_vote_participant_id: finalZeroVote,
           season_popular_participant_id: popularOneVote,
         }),
-      });
+        }
+      );
       if (!res.ok) {
-        throw new Error("최종 투표 제출에 실패했어요.");
+        throw new Error(isAdmin ? "정답 입력에 실패했어요." : "최종 투표 제출에 실패했어요.");
       }
       setOverview((prev) =>
         prev
@@ -293,9 +305,11 @@ export default function PredictTab() {
 
   const handleEpisodeSubmit = async () => {
     if (!token || !overview?.next_episode) return;
-    if (overview?.episode_predictions_locked) return;
+    if (episodeLocked) return;
     const confirmed = window.confirm(
-      "한번 예측하면 더이상 수정할 수 없습니다. 예측을 제출할까요?"
+      isAdmin
+        ? "정답을 입력하면 즉시 채점됩니다. 정답을 저장할까요?"
+        : "한번 예측하면 더이상 수정할 수 없습니다. 예측을 제출할까요?"
     );
     if (!confirmed) return;
     const answers: Array<{
@@ -319,7 +333,9 @@ export default function PredictTab() {
 
     try {
       setEpisodeSubmitting(true);
-      const res = await fetch(`${backendUrl}/predictions/episode`, {
+      const res = await fetch(
+        `${backendUrl}${isAdmin ? "/predictions/admin/episode" : "/predictions/episode"}`,
+        {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -329,14 +345,15 @@ export default function PredictTab() {
           episode_id: overview.next_episode.id,
           answers,
         }),
-      });
+        }
+      );
       if (!res.ok) {
-        throw new Error("회차 예측 제출에 실패했어요.");
+        throw new Error(isAdmin ? "정답 입력에 실패했어요." : "회차 예측 제출에 실패했어요.");
       }
       setOverview((prev) =>
         prev ? { ...prev, episode_predictions_locked: true } : prev
       );
-      window.alert("예측이 성공적으로 저장되었습니다.");
+      window.alert(isAdmin ? "정답이 성공적으로 저장되었습니다." : "예측이 성공적으로 저장되었습니다.");
     } catch (submitError) {
       setError((submitError as Error).message);
     } finally {
@@ -594,7 +611,7 @@ export default function PredictTab() {
                   커플은 한번 제출하면 수정할 수 없어요.
                 </p>
               </div>
-              {!overview?.season_couples_locked && overview?.season_start_open && (
+              {!seasonCouplesLocked && (overview?.season_start_open || isAdmin) && (
                 <button
                   type="button"
                   onClick={() => setSeasonPairs([])}
@@ -647,8 +664,8 @@ export default function PredictTab() {
                   <div className="flex flex-col items-center space-y-1">
                     {maleParticipants.map((participant) => {
                       const disabled =
-                        !overview?.season_start_open ||
-                        overview?.season_couples_locked ||
+                        (!overview?.season_start_open && !isAdmin) ||
+                        seasonCouplesLocked ||
                         seasonPairs.some((pair) => pair.male_id === participant.id);
 
                       return renderParticipantCard(
@@ -673,8 +690,8 @@ export default function PredictTab() {
                   <div className="flex flex-col items-center space-y-1">
                     {femaleParticipants.map((participant) => {
                       const disabled =
-                        !overview?.season_start_open ||
-                        overview?.season_couples_locked ||
+                        (!overview?.season_start_open && !isAdmin) ||
+                        seasonCouplesLocked ||
                         seasonPairs.some((pair) => pair.female_id === participant.id);
 
                       return renderParticipantCard(
@@ -719,7 +736,7 @@ export default function PredictTab() {
                       <Heart className="h-4 w-4 text-pink-500 fill-pink-500" />
                       {male.name}
                     </div>
-                    {!overview?.season_couples_locked && overview?.season_start_open && (
+                    {!seasonCouplesLocked && (overview?.season_start_open || isAdmin) && (
                       <button
                         type="button"
                         onClick={() =>
@@ -748,23 +765,25 @@ export default function PredictTab() {
               onClick={handleSeasonSubmit}
               disabled={
                 seasonSubmitting ||
-                !overview?.season_start_open ||
-                overview?.season_couples_locked ||
+                (!overview?.season_start_open && !isAdmin) ||
+                seasonCouplesLocked ||
                 seasonPairs.length === 0
               }
               className="mt-8 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white shadow-sm transition-all disabled:cursor-not-allowed disabled:bg-slate-300"
             >
-              {overview?.season_couples_locked
+              {seasonCouplesLocked
                 ? "제출 완료"
                 : seasonSubmitting
                 ? "제출 중..."
+                : isAdmin
+                ? "정답 입력하기"
                 : "예측 제출하기"}
             </button>
           </div>
       </div>
 
       {/* 아래는 원본 그대로 (시즌 최종 투표 / 회차별 예측 등) */}
-      {overview?.season_final_vote_open && (
+      {(overview?.season_final_vote_open || isAdmin) && (
         <div className="rounded-[2rem] border border-slate-200 bg-white px-6 py-6">
           <p className="text-base font-black text-slate-900">
             시즌 최종 투표 (1회 한정)
@@ -778,7 +797,7 @@ export default function PredictTab() {
               <select
                 value={finalZeroVote}
                 onChange={(event) => setFinalZeroVote(Number(event.target.value))}
-                disabled={finalVoteLocked}
+                disabled={finalVoteLocked && !isAdmin}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-200"
               >
                 <option value="">선택하세요</option>
@@ -794,7 +813,7 @@ export default function PredictTab() {
               <select
                 value={popularOneVote}
                 onChange={(event) => setPopularOneVote(Number(event.target.value))}
-                disabled={finalVoteLocked}
+                disabled={finalVoteLocked && !isAdmin}
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-200"
               >
                 <option value="">선택하세요</option>
@@ -809,10 +828,16 @@ export default function PredictTab() {
           <button
             type="button"
             onClick={handleFinalVoteSubmit}
-            disabled={finalSubmitting || finalVoteLocked || !finalZeroVote || !popularOneVote}
+            disabled={finalSubmitting || (finalVoteLocked && !isAdmin) || !finalZeroVote || !popularOneVote}
             className="mt-6 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
           >
-            {finalVoteLocked ? "제출 완료" : finalSubmitting ? "제출 중..." : "투표 제출하기"}
+            {finalVoteLocked && !isAdmin
+              ? "제출 완료"
+              : finalSubmitting
+              ? "제출 중..."
+              : isAdmin
+              ? "정답 입력하기"
+              : "투표 제출하기"}
           </button>
         </div>
       )}
@@ -849,32 +874,33 @@ export default function PredictTab() {
                       strokeLinecap="round"
                       opacity={0.85}
                     />
-                    <circle
-                      cx={l.mx} cy={l.my}
-                      r={14}
-                      fill="#fb7185"
-                      opacity={0.95}
-                    />
-                    <text
-                      x={l.mx}
-                      y={l.my + 5}
-                      textAnchor="middle"
-                      fontSize="16"
-                      fill="white"
-                      fontWeight="700"
-                    >
-                      ♥
-                    </text>
                   </g>
                 ))}
               </svg>
+              {messageLines.map((l) => (
+                <div
+                  key={`${l.key}-icon`}
+                  className="pointer-events-none absolute flex h-8 w-8 items-center justify-center rounded-full bg-pink-500 text-white"
+                  style={{
+                    left: l.mx,
+                    top: l.my,
+                    transform: "translate(-50%, -50%)",
+                    zIndex: 6,
+                  }}
+                >
+                  <MessageCircleHeart className="h-4 w-4" />
+                </div>
+              ))}
 
               <div className="mt-5 grid grid-cols-2 gap-2">
                 <div className="flex flex-col items-center space-y-2">
                   <p className="text-center text-xs font-semibold text-slate-500">남성 출연자</p>
                   <div className="flex flex-col items-center space-y-1">
                     {maleParticipants.map((participant) => {
-                      const disabled = messagePairs.some((pair) => pair.male_id === participant.id);
+                      const disabled =
+                        (!overview?.season_start_open && !isAdmin) ||
+                        episodeLocked ||
+                        messagePairs.some((pair) => pair.male_id === participant.id);
 
                       return renderParticipantCard(
                         participant,
@@ -897,7 +923,10 @@ export default function PredictTab() {
                   <p className="text-center text-xs font-semibold text-slate-500">여성 출연자</p>
                   <div className="flex flex-col items-center space-y-1">
                     {femaleParticipants.map((participant) => {
-                      const disabled = messagePairs.some((pair) => pair.female_id === participant.id);
+                      const disabled =
+                        (!overview?.season_start_open && !isAdmin) ||
+                        episodeLocked ||
+                        messagePairs.some((pair) => pair.female_id === participant.id);
 
                       return renderParticipantCard(
                         participant,
@@ -982,7 +1011,8 @@ export default function PredictTab() {
                       [likeUpItem.id]: event.target.value,
                     }))
                   }
-                  className="mt-2 w-full rounded-xl border border-green-200 bg-white px-3 py-2 text-sm"
+                  disabled={episodeLocked}
+                  className="mt-2 w-full rounded-xl border border-green-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-200"
                 >
                   <option value="">선택하세요</option>
                   {participants.map((participant) => (
@@ -1005,7 +1035,8 @@ export default function PredictTab() {
                       [likeDownItem.id]: event.target.value,
                     }))
                   }
-                  className="mt-2 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm"
+                  disabled={episodeLocked}
+                  className="mt-2 w-full rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-200"
                 >
                   <option value="">선택하세요</option>
                   {participants.map((participant) => (
@@ -1074,13 +1105,15 @@ export default function PredictTab() {
         <button
           type="button"
           onClick={handleEpisodeSubmit}
-          disabled={episodeSubmitting || overview?.episode_predictions_locked}
+          disabled={episodeSubmitting || episodeLocked}
           className="mt-8 w-full rounded-3xl bg-pink-500 py-4 text-base font-bold text-white disabled:cursor-not-allowed disabled:bg-slate-300"
         >
-          {overview?.episode_predictions_locked
+          {episodeLocked
             ? "제출 완료"
             : episodeSubmitting
             ? "제출 중..."
+            : isAdmin
+            ? "정답 입력하기"
             : "예측 제출하기"}
         </button>
       </div>

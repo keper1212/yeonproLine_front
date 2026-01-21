@@ -112,6 +112,8 @@ export default function ProfileTab() {
   const [accuracy, setAccuracy] = useState<AccuracyPoint[]>([]);
   const [history, setHistory] = useState<EpisodePredictions[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
+  const [editingNickname, setEditingNickname] = useState(false);
+  const [nicknameDraft, setNicknameDraft] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAllHistory, setShowAllHistory] = useState(false);
@@ -157,6 +159,7 @@ export default function ProfileTab() {
           : { participants: [] };
 
         setSummary(summaryData);
+        setNicknameDraft(summaryData.nickname);
         setBadges(badgesData.badges ?? []);
         setAccuracy(accuracyData.points ?? []);
         setHistory(historyData.episodes ?? []);
@@ -179,6 +182,39 @@ export default function ProfileTab() {
     if (!summary?.primary_badge_name) return "🏅";
     return badgeIconMap[summary.primary_badge_name] ?? "🏅";
   }, [summary?.primary_badge_name]);
+
+  const handleNicknameSave = async () => {
+    const token = session?.appAccessToken;
+    if (!token || !summary) return;
+    const trimmed = nicknameDraft.trim();
+    if (!trimmed || trimmed === summary.nickname) {
+      setEditingNickname(false);
+      setNicknameDraft(summary.nickname);
+      return;
+    }
+    try {
+      setLoading(true);
+      const res = await fetch(`${backendUrl}/users/me/nickname`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ nickname: trimmed }),
+      });
+      if (!res.ok) {
+        throw new Error("닉네임 변경에 실패했습니다.");
+      }
+      const nextSummary = (await res.json()) as UserSummary;
+      setSummary(nextSummary);
+      setNicknameDraft(nextSummary.nickname);
+      setEditingNickname(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "알 수 없는 오류가 발생했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const stats = useMemo(() => {
     if (!summary) return [];
@@ -267,29 +303,6 @@ export default function ProfileTab() {
     });
   }, [history, participants]);
 
-  const personalityData = useMemo(() => {
-    return [
-      {
-        label: "감정형",
-        val: "45%",
-        color: "bg-pink-500",
-        txt: "출연자의 감정과 분위기를 중시하며 예측합니다",
-      },
-      {
-        label: "논리형",
-        val: "35%",
-        color: "bg-indigo-500",
-        txt: "데이터와 패턴을 분석하여 예측합니다",
-      },
-      {
-        label: "인기 추종형",
-        val: "20%",
-        color: "bg-slate-500",
-        txt: "대중의 의견을 참고하여 예측합니다",
-      },
-    ];
-  }, []);
-
   const fontMain = "font-sans antialiased tracking-tight text-slate-800";
 
   return (
@@ -329,7 +342,46 @@ export default function ProfileTab() {
                 )}
               </div>
               <div className="space-y-1">
-                <h2 className="text-xl font-bold">{summary.nickname}</h2>
+                <div className="flex items-center gap-3">
+                  {editingNickname ? (
+                    <input
+                      value={nicknameDraft}
+                      onChange={(event) => setNicknameDraft(event.target.value)}
+                      className="rounded-lg border border-pink-200 bg-white px-3 py-1 text-sm font-semibold text-slate-800"
+                    />
+                  ) : (
+                    <h2 className="text-xl font-bold">{summary.nickname}</h2>
+                  )}
+                  {editingNickname ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleNicknameSave}
+                        className="rounded-lg bg-pink-500 px-3 py-1 text-xs font-bold text-white"
+                      >
+                        저장
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingNickname(false);
+                          setNicknameDraft(summary.nickname);
+                        }}
+                        className="rounded-lg border border-pink-200 px-3 py-1 text-xs font-bold text-pink-500"
+                      >
+                        취소
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setEditingNickname(true)}
+                      className="rounded-lg border border-pink-200 px-3 py-1 text-xs font-bold text-pink-500"
+                    >
+                      닉네임 수정
+                    </button>
+                  )}
+                </div>
                 <div className="flex gap-1.5 text-lg">
                   {userEarnedBadges.map((badge) => (
                     <span key={badge.id}>{badgeIconMap[badge.name] ?? "🏅"}</span>
@@ -422,49 +474,6 @@ export default function ProfileTab() {
                   />
                 </AreaChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="bg-[#F5F3FF] rounded-[2.5rem] p-8 shadow-sm border border-[#DDD6FE] text-left">
-            <div className="flex items-center gap-2 mb-8">
-              <Sparkles className="w-5 h-5 text-purple-500" />
-              <h3 className="text-lg font-bold">내 예측 성향 분석</h3>
-            </div>
-
-            <div className="space-y-8">
-              {personalityData.map((item, i) => (
-                <div key={item.label} className="space-y-3">
-                  <div className="flex justify-between items-end">
-                    <span className="font-bold text-slate-700">{item.label}</span>
-                    <span
-                      className={`font-bold text-lg ${
-                        i === 0
-                          ? "text-pink-500"
-                          : i === 1
-                          ? "text-indigo-500"
-                          : "text-slate-500"
-                      }`}
-                    >
-                      {item.val}
-                    </span>
-                  </div>
-                  <div className="w-full h-3 bg-white/50 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full ${item.color} rounded-full`}
-                      style={{ width: item.val }}
-                    />
-                  </div>
-                  <p className="text-xs font-medium text-slate-400 leading-relaxed">
-                    {item.txt}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-10 bg-white rounded-3xl p-5 text-center shadow-sm border border-purple-100">
-              <p className="text-sm font-bold text-slate-700">
-                당신은 <span className="text-pink-500 font-extrabold underline decoration-pink-100 underline-offset-4 decoration-4">감정형 예측자</span>입니다! 💕
-              </p>
             </div>
           </div>
 

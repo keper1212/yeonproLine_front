@@ -314,11 +314,40 @@ export default function SentimentTab() {
 
   const highlight = useMemo(() => {
     if (!overview?.event || overview.event.event_type === "stable") return null;
+    const historyPoints = overview.history
+      .map((point) => ({
+        ...point,
+        date: new Date(point.captured_at),
+      }))
+      .filter((point) => point.episode_id);
+    const findClosestEpisode = (target: Date) => {
+      if (historyPoints.length === 0) return null;
+      let closest = historyPoints[0];
+      let closestDiff = Math.abs(closest.date.getTime() - target.getTime());
+      for (const point of historyPoints.slice(1)) {
+        const diff = Math.abs(point.date.getTime() - target.getTime());
+        if (diff < closestDiff) {
+          closest = point;
+          closestDiff = diff;
+        }
+      }
+      return closest.episode_id ?? null;
+    };
+    const startEpisode = findClosestEpisode(new Date(overview.event.start_at));
+    const endEpisode = findClosestEpisode(new Date(overview.event.end_at));
+    const endAt = new Date(overview.event.end_at);
     const base = overview.history[0]?.captured_at
       ? new Date(overview.history[0].captured_at)
       : null;
-    const endAt = new Date(overview.event.end_at);
-    const timeLabel = base ? `${formatMinutesLabel(base, endAt)} 구간` : "최근 구간";
+    let timeLabel = base ? `${formatMinutesLabel(base, endAt)} 구간` : "최근 구간";
+    if (startEpisode && endEpisode) {
+      timeLabel =
+        startEpisode === endEpisode
+          ? `EP.${endEpisode} 구간`
+          : `EP.${startEpisode} -> EP.${endEpisode} 구간`;
+    } else if (endEpisode) {
+      timeLabel = `EP.${endEpisode} 구간`;
+    }
     return {
       direction: overview.event.event_type,
       change: Math.abs(overview.event.delta),
